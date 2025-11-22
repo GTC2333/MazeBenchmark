@@ -7,14 +7,24 @@
 
 ## 快速开始
 
-文本 2D：
+统一运行（推荐）：
+```
+pip install -r requirements.txt
+python bench.py
+```
+
+所有输出将统一写入 outputs/：
+- text2d_summary.json / text2d_summary.pdf / text2d_report_*.html
+- image2d_summary.json / image2d_summary.pdf / image2d_report_*.html / image2d_maze_*.png
+
+文本 2D（独立运行）：
 ```
 pip install -r MazeBench-2D/requirements.txt
 python MazeBench-2D/cli.py --model gpt-4o --size 10x10 --workers 4
 open MazeBench-2D/examples/report_gpt-4o_10x10.html
 ```
 
-图像 2D（多模态）：
+图像 2D（多模态，独立运行）：
 ```
 pip install -r MazeBench-2D-Image/requirements.txt
 python MazeBench-2D-Image/cli.py
