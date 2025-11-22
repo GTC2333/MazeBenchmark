@@ -1,0 +1,12 @@
+maze:
+  sizes: ["5x5", "10x10", "20x20", "40x40"]
+  density: 0.3
+  trap_ratio: 0.2
+  seed: 123
+runtime:
+  workers: 4
+  timeout_sec: 8
+weights:
+  small: {S: 0.35, Q: 0.25, R: 0.2, A: 0.2}
+  medium: {S: 0.3, Q: 0.25, R: 0.25, A: 0.2}
+  large: {S: 0.25, Q: 0.25, R: 0.3, A: 0.2}

@@ -1,0 +1,5 @@
+[
+  {
+    "error": "HTTPSConnectionPool(host='api.openai.com', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7f7ca2e8bc80>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"
+  }
+]
