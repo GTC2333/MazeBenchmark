@@ -1,0 +1,15 @@
+# Unified configuration for MazeBenchmark
+# Fill in keys in local.yaml (ignored by git) to avoid committing secrets.
+
+model: mock
+# Optionally override per benchmark below
+text2d:
+  size: '10x10'
+  workers: 4
+image2d:
+  size: '10x10'
+  n: 3
+output_dir: outputs
+# API keys (use local.yaml for real values)
+OPENAI_API_KEY: ''
+ANTHROPIC_API_KEY: ''
