@@ -6,6 +6,5 @@ class ModelAdapter(ABC):
     def generate(self, prompt: str) -> str:
         raise NotImplementedError
 
-    @abstractmethod
     def name(self) -> str:
-        raise NotImplementedError
+        return self.__class__.__name__

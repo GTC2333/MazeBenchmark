@@ -11,6 +11,7 @@ from eval_core.metrics import Metrics
 from report.generator import generate_report
 from model_gateways.openai import OpenAIAdapter
 from model_gateways.anthropic import AnthropicAdapter
+from model_gateways.mock import MockAdapter
 from config.anti_cheat_rules import AntiCheat
 
 
@@ -25,9 +26,17 @@ def build_prompt(maze):
 
 
 def get_adapter(model_name: str):
+    if model_name.startswith('mock'):
+        return MockAdapter(model=model_name)
     if model_name.startswith('gpt') or model_name.startswith('openai'):
+        import os
+        if not os.environ.get('OPENAI_API_KEY'):
+            return MockAdapter(model='mock-'+model_name)
         return OpenAIAdapter(model=model_name)
     if model_name.startswith('claude') or model_name.startswith('anthropic'):
+        import os
+        if not os.environ.get('ANTHROPIC_API_KEY'):
+            return MockAdapter(model='mock-'+model_name)
         return AnthropicAdapter(model=model_name)
     raise ValueError('unknown model')
 
