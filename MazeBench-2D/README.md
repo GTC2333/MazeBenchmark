@@ -19,6 +19,12 @@ open MazeBench-2D/examples/report_gpt-4o_10x10.html
 - report：生成交互式 HTML 报告（综合得分、雷达图、热力图、路径对比与失败快照）。
 - config：默认参数与防作弊策略（输入扰动 + 输出沙盒）。
 
+
+## 离线/CI 模式
+- 若未设置 OPENAI_API_KEY/ANTHROPIC_API_KEY，CLI 将自动回退到 MockAdapter，确保流水线在 CI 环境无外部服务也可运行。
+- 显式使用本地模型：`python MazeBench-2D/cli.py --model mock --size 10x10` 或 `--model mock-gpt-4o`。
+- 报告与摘要同样生成于 examples/，用于验证端到端可用性。
+
 ## 指标定义
 设 S=成功率，Q=最优性，R=鲁棒性，A=防作弊合规；权重随迷宫尺寸动态调整。
 - S = 1{路径合法且到达终点}
