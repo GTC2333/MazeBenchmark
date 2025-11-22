@@ -6,30 +6,64 @@ from tqdm import tqdm
 from common.config_loader import load_config, apply_env_keys
 from common.pdf_export import export_summary_pdf
 
-# Import internals from both benches
-from MazeBench-2D.maze_gen.generator import MazeConfig as TextMazeConfig, MazeGenerator as TextMazeGenerator
-from MazeBench-2D.eval_core.parser import OutputParser as TextParser
-from MazeBench-2D.eval_core.validator import Validator as TextValidator
-from MazeBench-2D.eval_core.metrics import Metrics as TextMetrics
-from MazeBench-2D.report.generator import generate_report as TextReport
-from MazeBench-2D.model_gateways.openai import OpenAIAdapter as TextOpenAIAdapter
-from MazeBench-2D.model_gateways.mock import MockAdapter as TextMockAdapter
-from MazeBench-2D.config.anti_cheat_rules import AntiCheat as TextAntiCheat
+# Map hyphenated directories to importable alias packages, then import submodules normally
+import sys, types
+from importlib import import_module
 
-from MazeBench-2D-Image.maze_gen.generator import MazeConfig as ImgMazeConfig, MazeGenerator as ImgMazeGenerator
-from MazeBench-2D-Image.eval_core.parser import OutputParser as ImgParser
-from MazeBench-2D-Image.eval_core.validator import Validator as ImgValidator
-from MazeBench-2D-Image.eval_core.metrics import Metrics as ImgMetrics
-from MazeBench-2D-Image.report.generator import generate_report as ImgReport
-from MazeBench-2D-Image.model_gateways.openai import OpenAIAdapter as ImgOpenAIAdapter
-from MazeBench-2D-Image.model_gateways.mock import MockAdapter as ImgMockAdapter
-from MazeBench-2D-Image.config.anti_cheat_rules import AntiCheat as ImgAntiCheat
+_alias_map = {
+    'MazeBench_2D': Path('MazeBench-2D'),
+    'MazeBench_2D_Image': Path('MazeBench-2D-Image'),
+}
+for alias, dpath in _alias_map.items():
+    pkg = types.ModuleType(alias)
+    pkg.__path__ = [str(dpath)]
+    sys.modules[alias] = pkg
+
+# Load Text2D modules via alias package
+_txt_gen = import_module('MazeBench_2D.maze_gen.generator')
+_txt_parser = import_module('MazeBench_2D.eval_core.parser')
+_txt_validator = import_module('MazeBench_2D.eval_core.validator')
+_txt_metrics = import_module('MazeBench_2D.eval_core.metrics')
+_txt_report = import_module('MazeBench_2D.report.generator')
+_txt_openai = import_module('MazeBench_2D.model_gateways.openai')
+_txt_mock = import_module('MazeBench_2D.model_gateways.mock')
+_txt_anticheat = import_module('MazeBench_2D.config.anti_cheat_rules')
+
+TextMazeConfig = _txt_gen.MazeConfig
+TextMazeGenerator = _txt_gen.MazeGenerator
+TextParser = _txt_parser.OutputParser
+TextValidator = _txt_validator.Validator
+TextMetrics = _txt_metrics.Metrics
+TextReport = _txt_report.generate_report
+TextOpenAIAdapter = _txt_openai.OpenAIAdapter
+TextMockAdapter = _txt_mock.MockAdapter
+TextAntiCheat = _txt_anticheat.AntiCheat
+
+# Load Image2D modules via alias package
+_img_gen = import_module('MazeBench_2D_Image.maze_gen.generator')
+_img_parser = import_module('MazeBench_2D_Image.eval_core.parser')
+_img_validator = import_module('MazeBench_2D_Image.eval_core.validator')
+_img_metrics = import_module('MazeBench_2D_Image.eval_core.metrics')
+_img_report = import_module('MazeBench_2D_Image.report.generator')
+_img_openai = import_module('MazeBench_2D_Image.model_gateways.openai')
+_img_mock = import_module('MazeBench_2D_Image.model_gateways.mock')
+_img_anticheat = import_module('MazeBench_2D_Image.config.anti_cheat_rules')
+
+ImgMazeConfig = _img_gen.MazeConfig
+ImgMazeGenerator = _img_gen.MazeGenerator
+ImgParser = _img_parser.OutputParser
+ImgValidator = _img_validator.Validator
+ImgMetrics = _img_metrics.Metrics
+ImgReport = _img_report.generate_report
+ImgOpenAIAdapter = _img_openai.OpenAIAdapter
+ImgMockAdapter = _img_mock.MockAdapter
+ImgAntiCheat = _img_anticheat.AntiCheat
 
 
-def get_adapter(model: str, openai_key: str | None) -> object:
+def get_adapter(model: str, openai_key: str | None, image: bool = False) -> object:
     if model.startswith('mock') or not openai_key:
-        return TextMockAdapter(model=model)  # same interface
-    return TextOpenAIAdapter(model=model)
+        return ImgMockAdapter(model=model) if image else TextMockAdapter(model=model)
+    return ImgOpenAIAdapter(model=model) if image else TextOpenAIAdapter(model=model)
 
 
 def run_text2d(cfg: Dict, outdir: Path) -> Dict:
@@ -37,7 +71,7 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
     size = (cfg.get('text2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
     workers = int(cfg.get('text2d', {}).get('workers') or 4)
-    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'))
+    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
 
     sizes = [size]
     results = []
@@ -76,7 +110,7 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     size = (cfg.get('image2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
     n = int(cfg.get('image2d', {}).get('n') or 3)
-    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'))
+    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True)
 
     results = []
     img_paths = []

@@ -1,11 +1,12 @@
 import re
 import json
 from typing import List, Tuple, Optional
-from pydantic import BaseModel
+from dataclasses import dataclass
 
 Coord = Tuple[int, int]
 
-class ParseResult(BaseModel):
+@dataclass
+class ParseResult:
     path: List[Coord]
     raw: str
     mode: str

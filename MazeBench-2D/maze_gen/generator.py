@@ -1,21 +1,18 @@
 import json
 from typing import List, Tuple, Dict, Optional
 import numpy as np
-from pydantic import BaseModel, Field, validator
+from dataclasses import dataclass
 from .traps import TrapInjector
 
 Coord = Tuple[int, int]
 
-class MazeConfig(BaseModel):
-    width: int = Field(..., ge=5, le=40)
-    height: int = Field(..., ge=5, le=40)
-    density: float = Field(0.3, ge=0.0, le=0.6)
-    trap_ratio: float = Field(0.2, ge=0.0, le=0.6)
+@dataclass
+class MazeConfig:
+    width: int
+    height: int
+    density: float = 0.3
+    trap_ratio: float = 0.2
     seed: Optional[int] = None
-
-    @validator('density', 'trap_ratio')
-    def _validate_probs(cls, v):
-        return float(v)
 
 class MazeGenerator:
     def __init__(self, cfg: MazeConfig):
