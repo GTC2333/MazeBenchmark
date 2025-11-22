@@ -7,3 +7,6 @@ MazeBench-2D/examples/*.json
 MazeBench-2D-Image/examples/*.html
 MazeBench-2D-Image/examples/*.json
 MazeBench-2D-Image/examples/*.png
+
+# Config local secrets
+config/local.yaml
