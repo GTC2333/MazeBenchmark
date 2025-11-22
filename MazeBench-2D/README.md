@@ -9,6 +9,7 @@ python MazeBench-2D/cli.py --model gpt-4o --size 10x10 --workers 4
 open MazeBench-2D/examples/report_gpt-4o_10x10.html
 ```
 
+> 多模态图像版请参考 MazeBench-2D-Image 目录与 README。
 ## 评测流水线
 生成 → 输入构造 → 模型调用 → 输出解析 → 多维验证 → 报告生成，全流程无需人工干预，适配 CI/CD。
 
@@ -39,7 +40,7 @@ open MazeBench-2D/examples/report_gpt-4o_10x10.html
 - 输出限定：仅接受纯路径，拒绝解释性文本。
 
 ## 人类基线参考
-在人类受试者中，平均综合得分约 82.1 分（10×10 难度）。
+
 
 ## 示例输出
 在 examples/ 目录将自动生成 GPT-4o 在 10x10 迷宫上的完整评测报告（HTML）。
