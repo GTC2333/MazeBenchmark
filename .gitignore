@@ -10,3 +10,6 @@ MazeBench-2D-Image/examples/*.png
 
 # Config local secrets
 config/local.yaml
+
+# Unified outputs
+outputs/
