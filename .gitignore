@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+MazeBench-2D/examples/*.html
+MazeBench-2D/examples/*.json
