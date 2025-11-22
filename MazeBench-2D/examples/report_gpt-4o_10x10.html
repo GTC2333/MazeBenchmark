@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>MazeBench-2D Report</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { border: 1px solid #ccc; padding: 12px; border-radius: 8px; }
+    pre { background: #f7f7f7; padding: 8px; }
+  </style>
+</head>
+<body>
+  <h1>MazeBench-2D</h1>
+  <h2>综合得分: 20.0 分</h2>
+  <div id="radar" class="card"></div>
+  <script>
+    var data = [{
+      type: 'scatterpolar',
+      r: [0.0, 0.0, 0.0, 1.0],
+      theta: ['S','Q','R','A'],
+      fill: 'toself'
+    }];
+    var layout = {polar: {radialaxis: {visible: true, range: [0,1]}}, showlegend: false};
+    Plotly.newPlot('radar', data, layout);
+  </script>
+
+  <div class="grid">
+    <div class="card">
+      <h3>热力图</h3>
+      <div id="heatmap"></div>
+      <script>
+        var grid = [[0, 0, 0, 0, 0, 1, 1, 1, 0, 0], [1, 1, 1, 1, 0, 0, 0, 1, 1, 1], [1, 1, 1, 1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 1, 1, 1, 1, 0], [1, 0, 0, 1, 0, 1, 0, 0, 1, 0], [0, 0, 0, 0, 1, 0, 1, 0, 1, 0], [1, 0, 1, 1, 0, 1, 0, 1, 0, 0], [0, 1, 0, 0, 1, 0, 1, 0, 1, 0], [0, 1, 1, 0, 0, 0, 0, 1, 1, 0], [0, 1, 0, 0, 0, 0, 0, 0, 0, 0]];
+        var z = grid.map(row => row.map(v => v==1?10:0));
+        var dataHeat = [{z: z, type: 'heatmap'}];
+        Plotly.newPlot('heatmap', dataHeat, {});
+      </script>
+    </div>
+    <div class="card">
+      <h3>路径对比</h3>
+      <div id="pathplot"></div>
+      <script>
+        var sp = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [1, 5], [1, 6], [2, 6], [2, 7], [2, 8], [2, 9], [3, 9], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9]];
+        var mp = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [0, 9], [1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [6, 9], [7, 9], [8, 9], [9, 9]];
+        function toXY(path){
+          var xs = path.map(p=>p[1]);
+          var ys = path.map(p=>p[0]);
+          return [xs, ys];
+        }
+        var spxy = toXY(sp);
+        var mpxy = toXY(mp);
+        var dataPath = [
+          {x: spxy[0], y: spxy[1], mode: 'lines+markers', name: 'Shortest'},
+          {x: mpxy[0], y: mpxy[1], mode: 'lines+markers', name: 'Model'}
+        ];
+        Plotly.newPlot('pathplot', dataPath, {yaxis:{autorange:'reversed'}});
+      </script>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>典型失败案例</h3>
+    <pre>validity_failure: wall_collision</pre>
+  </div>
+</body>
+</html>

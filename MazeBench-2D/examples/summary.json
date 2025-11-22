@@ -8,6 +8,6 @@
       "total": 20.0
     },
     "path_mode": "coords",
-    "report": "MazeBench-2D/examples/report_mock-gpt-4o_10x10.html"
+    "report": "MazeBench-2D/examples/report_mock_10x10.html"
   }
 ]
