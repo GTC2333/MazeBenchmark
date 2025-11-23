@@ -19,7 +19,6 @@ from model_gateways.mock import MockAdapter
 class RunConfig:
     width: int = 10
     height: int = 10
-    density: float = 0.3
     trap_ratio: float = 0.0
     seed: int | None = None
     cell_px: int = 24
@@ -39,7 +38,7 @@ def get_adapter() -> ModelAdapter:
 
 
 def run_single(cfg: RunConfig, idx: int):
-    gen = MazeGenerator(MazeConfig(width=cfg.width, height=cfg.height, density=cfg.density, trap_ratio=cfg.trap_ratio, seed=(cfg.seed or 0)+idx, cell_px=cfg.cell_px))
+    gen = MazeGenerator(MazeConfig(width=cfg.width, height=cfg.height, seed=(cfg.seed or 0)+idx, cell_px=cfg.cell_px))
     maze = gen.generate()
     img = gen.render_image(maze)
     out_dir = Path(cfg.out_dir)
