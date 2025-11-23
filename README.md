@@ -51,16 +51,18 @@ Phases:
 
 ## Parameter effects and realism
 
-Key parameters to control maze realism:
-- density: proportion of walls; higher values create narrower corridors and more dead-ends
+New generation method (no density):
+- Main path via random walk with local turn bias; avoids long straights and diagonal dominance
+- Branching tree style: sample along main path to carve short branches ending in dead-ends
+- Wall dispersion: break up large continuous blocks and limit global wall ratio
+
+Key parameters:
 - trap_ratio: percentage of trap cells; increases path risk and penalizes unsafe routes
 - seed: random seed for reproducibility; use varied seeds for diversity
 - cell_px (Image2D): pixel size per cell; larger values create clearer visuals
-- entrance/exit placement: corners vs random; affects path length distribution
-- loop bias vs tree-like structure: adjust generation to add cycles for more realistic mazes
+- start/goal placement: corners vs random; affects path length distribution
 
 Recommended ranges:
-- density: 0.2–0.4 for balanced mazes
 - trap_ratio: 0.0–0.2 depending on difficulty
 - size: 10x10–40x40 for practical benchmarking
 
@@ -99,7 +101,7 @@ open MazeBench-2D-Image/examples/report_10x10_0.html
 若未配置 OPENAI_API_KEY 等外部密钥，系统将自动使用 MockAdapter，确保流水线在离线/CI 环境可运行。
 
 ## 两种模式的差异与一致性
-- 一致参数：宽高、障碍密度、陷阱比例、随机种子、最短路径计算与连通性保证
+- 一致参数：宽高、陷阱比例、随机种子、最短路径计算与连通性保证（不使用密度参数）
 - 差异输入：文本网格 vs PNG 像素化迷宫（标注绿色起点、红色终点）
 - 一致评测：解析容忍多格式、路径合法性与最优性验证、S/Q/R/A 四维评分、HTML 报告
 
