@@ -9,7 +9,19 @@ text2d:
 image2d:
   size: '10x10'
   n: 3
+  density: 0.3
+  trap_ratio: 0.0
+  cell_px: 24
 output_dir: outputs
+# Optional control flags
+# Set generate_only: true to only generate mazes and save to outputs/mazes_*
+# Set pre_generated_dir: path to use local saved mazes for evaluation
+# Set mode: text2d/image2d/all to scope actions
+# count: number of mazes to generate in generate_only mode
+mode: all
+generate_only: false
+pre_generated_dir: ''
+count: 3
 # API keys (use local.yaml for real values)
 OPENAI_API_KEY: ''
 ANTHROPIC_API_KEY: ''

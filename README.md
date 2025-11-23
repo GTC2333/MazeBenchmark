@@ -1,4 +1,69 @@
-# MazeBenchmark
+# Maze Benchmark
+
+This repository provides unified 2D maze benchmarks for LLMs with two modes:
+1) Text2D: text-only input/output
+2) Image2D: image input + text output (multimodal)
+
+Both modes share unified configuration, execution flow, and output structures.
+
+## Running
+
+Single entrypoint:
+
+    python bench.py
+
+Configuration at config/config.yaml. Secrets can be placed in a local.yaml ignored by git.
+
+Flags through config keys:
+- model: adapter name (mock or provider-specific)
+- text2d.size: e.g. '10x10'
+- image2d.size: e.g. '10x10'; image2d.n: number of mazes
+- output_dir: where outputs/ are stored
+- generate_only: if true, only generate and save mazes
+- pre_generated_dir: path to a directory with saved mazes to evaluate without generating
+- mode: text2d/image2d/all to scope generation or evaluation
+
+Outputs:
+- JSON summaries per mode: text2d_summary.json, image2d_summary.json
+- HTML reports per run with details
+- PDF summaries via ReportLab: text2d_summary.pdf, image2d_summary.pdf
+- overview.json aggregating averages
+
+Generate-only saves assets under outputs/mazes_text2d or outputs/mazes_image2d.
+Pre-generated evaluation consumes assets named text2d_maze_* or image2d_maze_*.json/.png in the specified directory.
+
+## 3D Roadmap
+
+Planned 3D maze benchmark:
+- Voxels-based 3D grid with start/goal on different floors
+- Rendering: simple orthographic slices + isometric projection images
+- Input: image stacks or short video; Output: textual path or command sequence
+- Parameters: obstacle density, trap ratio, corridor width, entrance/exit placement, dead-end frequency, loop bias
+- Evaluation: shortest-path validation, collision checks, step budget, time-to-solve
+- Adapters: extend current interface to pass video frames
+
+Phases:
+1) 3D generator and renderer (mock assets)
+2) Parser/validator for 3D paths
+3) Metrics and reporting unified with 2D
+4) Multimodal adapters (image stack/video)
+5) End-to-end integration in bench.py
+
+## Parameter effects and realism
+
+Key parameters to control maze realism:
+- density: proportion of walls; higher values create narrower corridors and more dead-ends
+- trap_ratio: percentage of trap cells; increases path risk and penalizes unsafe routes
+- seed: random seed for reproducibility; use varied seeds for diversity
+- cell_px (Image2D): pixel size per cell; larger values create clearer visuals
+- entrance/exit placement: corners vs random; affects path length distribution
+- loop bias vs tree-like structure: adjust generation to add cycles for more realistic mazes
+
+Recommended ranges:
+- density: 0.2–0.4 for balanced mazes
+- trap_ratio: 0.0–0.2 depending on difficulty
+- size: 10x10–40x40 for practical benchmarking
+
 一个用于评测大模型空间推理与路径规划能力的开源基准，包含：
 - 2D 文本迷宫（MazeBench-2D）：以文本网格为输入，路径坐标列表为输出
 - 2D 图像迷宫（MazeBench-2D-Image）：以PNG图像为输入，路径坐标列表为输出（多模态）

@@ -141,19 +141,113 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     return summary
 
 
+# Utility: generate-only and pre-generated evaluation support
+def generate_mazes_to_dir(cfg: Dict, outdir: Path, mode: str = 'text2d', count: int = 5) -> None:
+    outdir.mkdir(parents=True, exist_ok=True)
+    if mode == 'text2d':
+        h, w = map(int, (cfg.get('text2d', {}).get('size') or '10x10').split('x'))
+        for i in tqdm(range(count), desc='GenOnly Text2D'):
+            gen = TextMazeGenerator(TextMazeConfig(width=w, height=h))
+            maze = gen.generate()
+            (outdir / f'text2d_maze_{h}x{w}_{i}.json').write_text(json.dumps(maze, ensure_ascii=False), encoding='utf-8')
+    elif mode == 'image2d':
+        h, w = map(int, (cfg.get('image2d', {}).get('size') or '10x10').split('x'))
+        for i in tqdm(range(count), desc='GenOnly Image2D'):
+            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, density=cfg.get('image2d', {}).get('density', 0.3), trap_ratio=cfg.get('image2d', {}).get('trap_ratio', 0.0), seed=i, cell_px=cfg.get('image2d', {}).get('cell_px', 24)))
+            maze = gen.generate()
+            img = gen.render_image(maze)
+            img.save(outdir / f'image2d_maze_{h}x{w}_{i}.png')
+            (outdir / f'image2d_maze_{h}x{w}_{i}.json').write_text(json.dumps(maze, ensure_ascii=False), encoding='utf-8')
+
+
+def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str = 'image2d') -> Dict:
+    outdir.mkdir(parents=True, exist_ok=True)
+    model = cfg.get('model', 'mock')
+    if mode == 'text2d':
+        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
+        results = []
+        for mp in sorted(mazes_dir.glob('text2d_maze_*.json')):
+            maze = json.loads(mp.read_text(encoding='utf-8'))
+            anti = TextAntiCheat(seed=maze.get('nonce', 0))
+            maze_p = anti.perturb_input(maze)
+            prompt = (
+                f"迷宫大小 {len(maze_p['grid'])}x{len(maze_p['grid'][0])}. 起点{maze_p['start']}, 终点{maze_p['goal']}. "
+                f"请输出纯坐标路径列表，如 [(0,0),(0,1),...]. 禁止解释。"
+            )
+            text = adapter.generate(prompt)
+            text = anti.sandbox_output(text)
+            parsed = TextParser().parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
+            v = TextValidator(maze['grid'], maze['start'], maze['goal'], maze.get('trap_zones', []), maze['shortest_path'])
+            vres = v.validate(parsed.path)
+            scores = TextMetrics(size=max(maze['height'], maze['width'])).score(vres)
+            results.append({'maze': mp.name, 'scores': scores})
+        summary = {'avg_total': round(sum(r['scores']['total'] for r in results)/len(results), 2), 'items': results}
+        (outdir / 'text2d_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+        export_summary_pdf(str(outdir / 'text2d_summary.pdf'), 'Text2D Summary', summary)
+        return summary
+    else:
+        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True)
+        results = []
+        img_paths = []
+        for jp in sorted(mazes_dir.glob('image2d_maze_*.json')):
+            maze = json.loads(jp.read_text(encoding='utf-8'))
+            base = jp.stem
+            png = mazes_dir / (base + '.png')
+            img_paths.append(str(png))
+            anti = ImgAntiCheat(seed=maze.get('nonce', 0))
+            maze_p = anti.perturb_input(maze)
+            prompt = f"请根据图片中的迷宫，从绿色起点到红色终点输出坐标路径列表。迷宫尺寸为 {maze['height']}x{maze['width']}。只输出[(r,c),...]，不要解释。"
+            text = adapter.generate(prompt, image_path=str(png))
+            text = anti.sandbox_output(text)
+            parsed = ImgParser().parse_with_fallback(text, adapter=None)
+            v = ImgValidator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
+            vres = v.validate(parsed.path)
+            scores = ImgMetrics().score(vres)
+            results.append({'maze': jp.name, 'scores': scores})
+        summary = {'avg_total': round(sum(r['scores']['total'] for r in results)/len(results), 2), 'items': results}
+        (outdir / 'image2d_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+        export_summary_pdf(str(outdir / 'image2d_summary.pdf'), 'Image2D Summary', summary, image_paths=img_paths)
+        return summary
+
+
 def main():
     cfg = load_config()
     apply_env_keys(cfg)
     outdir = Path(cfg.get('output_dir') or 'outputs')
     outdir.mkdir(parents=True, exist_ok=True)
-    print('Running MazeBenchmark with model', cfg.get('model'))
-    text_summary = run_text2d(cfg, outdir)
-    img_summary = run_image2d(cfg, outdir)
-    # overview meta
+    # Optional generate-only
+    gen_only = cfg.get('generate_only', False)
+    preg_dir = cfg.get('pre_generated_dir')
+    mode = cfg.get('mode')  # text2d/image2d/all
+    count = int(cfg.get('count') or cfg.get('image2d', {}).get('n') or 3)
+    if gen_only:
+        m = mode or 'all'
+        if m in ('text2d','all'):
+            generate_mazes_to_dir(cfg, outdir / 'mazes_text2d', 'text2d', count=count)
+        if m in ('image2d','all'):
+            generate_mazes_to_dir(cfg, outdir / 'mazes_image2d', 'image2d', count=count)
+        print('Generate-only complete at', outdir)
+        return
+    # Optional evaluation from pre-generated assets
+    if preg_dir:
+        m = mode or 'image2d'
+        if m == 'text2d':
+            text_summary = eval_from_pregenerated(cfg, Path(preg_dir), outdir, mode='text2d')
+            img_summary = {'avg_total': 0}
+        elif m == 'image2d':
+            img_summary = eval_from_pregenerated(cfg, Path(preg_dir), outdir, mode='image2d')
+            text_summary = {'avg_total': 0}
+        else:
+            text_summary = eval_from_pregenerated(cfg, Path(preg_dir), outdir, mode='text2d')
+            img_summary = eval_from_pregenerated(cfg, Path(preg_dir), outdir, mode='image2d')
+    else:
+        print('Running MazeBenchmark with model', cfg.get('model'))
+        text_summary = run_text2d(cfg, outdir)
+        img_summary = run_image2d(cfg, outdir)
     overview = {
         'model': cfg.get('model'),
-        'text2d_avg': text_summary['avg_total'],
-        'image2d_avg': img_summary['avg_total']
+        'text2d_avg': text_summary.get('avg_total', 0),
+        'image2d_avg': img_summary.get('avg_total', 0)
     }
     (outdir / 'overview.json').write_text(json.dumps(overview, ensure_ascii=False, indent=2), encoding='utf-8')
     print('Done. Summaries saved to', outdir)
