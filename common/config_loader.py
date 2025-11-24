@@ -13,14 +13,14 @@ def load_config() -> Dict:
     if local.exists():
         loc = yaml.safe_load(local.read_text(encoding='utf-8')) or {}
         cfg.update(loc)
-    for k in ['OPENAI_API_KEY','ANTHROPIC_API_KEY','model','output_dir']:
+    for k in ['OPENAI_API_KEY','ANTHROPIC_API_KEY','model','output_dir','OPENAI_API_BASE','OPENAI_API_KEY_ENV','USE_OPENAI_SDK']:
         if os.getenv(k):
             cfg[k] = os.getenv(k)
     return cfg
 
 
 def apply_env_keys(cfg: Dict):
-    for k in ['OPENAI_API_KEY','ANTHROPIC_API_KEY']:
+    for k in ['OPENAI_API_KEY','ANTHROPIC_API_KEY','OPENAI_API_BASE','OPENAI_API_KEY_ENV','USE_OPENAI_SDK']:
         v = cfg.get(k)
         if v:
             os.environ[k] = v

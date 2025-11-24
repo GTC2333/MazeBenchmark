@@ -33,8 +33,12 @@ def build_prompt(maze: Dict) -> str:
 
 
 def get_adapter() -> ModelAdapter:
-    if os.getenv('OPENAI_API_KEY'):
-        return OpenAIAdapter()
+    key_env = os.getenv('OPENAI_API_KEY_ENV')
+    has_key = bool(os.getenv('OPENAI_API_KEY')) or (bool(key_env) and bool(os.getenv(key_env)))
+    if has_key:
+        api_base = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
+        use_sdk = (os.getenv('USE_OPENAI_SDK','').lower() in ('1','true','yes'))
+        return OpenAIAdapter(api_base=api_base, api_key=os.getenv('OPENAI_API_KEY'), api_key_env=key_env, use_sdk=use_sdk)
     return MockAdapter()
 
 
@@ -47,7 +51,7 @@ def run_single(cfg: RunConfig, idx: int):
     img_path = out_dir / f"maze_{cfg.width}x{cfg.height}_{idx}.png"
     img.save(img_path)
 
-    anti = AntiCheat(seed=(cfg.seed or 0))
+    anti = AntiCheat(seed=maze.get('nonce', 0))
     maze_in = anti.perturb_input(maze)
     adapter = get_adapter()
     prompt = build_prompt(maze_in)
@@ -70,23 +74,25 @@ def main():
     parser.add_argument('--size', default='10x10')
     parser.add_argument('--n', type=int, default=3)
     parser.add_argument('--cell_px', type=int, default=24)
+    parser.add_argument('--trap_ratio', type=float, default=0.0)
     parser.add_argument('--start_goal', choices=['corner','random'], default='corner')
     parser.add_argument('--algorithm', choices=['dfs','prim'], default='dfs')
+    parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--out_dir', default='MazeBench-2D-Image/examples')
     args = parser.parse_args()
     h, w = map(int, args.size.split('x'))
-    rcfg = RunConfig(width=w, height=h, n=args.n, cell_px=args.cell_px, out_dir=args.out_dir)
+    rcfg = RunConfig(width=w, height=h, n=args.n, cell_px=args.cell_px, out_dir=args.out_dir, seed=args.seed)
     results = []
     for i in tqdm(range(rcfg.n)):
         # pass start_goal via generator config
-        gen = MazeGenerator(MazeConfig(width=rcfg.width, height=rcfg.height, seed=(rcfg.seed or 0)+i, cell_px=rcfg.cell_px, start_goal=args.start_goal, algorithm=args.algorithm))
+        gen = MazeGenerator(MazeConfig(width=rcfg.width, height=rcfg.height, seed=(rcfg.seed or 0)+i, trap_ratio=args.trap_ratio, cell_px=rcfg.cell_px, start_goal=args.start_goal, algorithm=args.algorithm))
         maze = gen.generate()
         img = gen.render_image(maze)
         out_dir = Path(rcfg.out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         img_path = out_dir / f"maze_{rcfg.width}x{rcfg.height}_{i}.png"
         img.save(img_path)
-        anti = AntiCheat(seed=(rcfg.seed or 0))
+        anti = AntiCheat(seed=maze.get('nonce', (rcfg.seed or 0)))
         maze_in = anti.perturb_input(maze)
         adapter = get_adapter()
         prompt = build_prompt(maze_in)

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict
 from tqdm import tqdm
+import os
 
 from common.config_loader import load_config, apply_env_keys
 from common.pdf_export import export_summary_pdf
@@ -60,26 +61,34 @@ ImgMockAdapter = _img_mock.MockAdapter
 ImgAntiCheat = _img_anticheat.AntiCheat
 
 
-def get_adapter(model: str, openai_key: str | None, image: bool = False) -> object:
-    if model.startswith('mock') or not openai_key:
+def get_adapter(model: str, openai_key: str | None, image: bool = False, openai_base: str | None = None, openai_key_env: str | None = None, use_sdk: bool | None = None) -> object:
+    if model.startswith('mock'):
         return ImgMockAdapter(model=model) if image else TextMockAdapter(model=model)
-    return ImgOpenAIAdapter(model=model) if image else TextOpenAIAdapter(model=model)
+    # Resolve API key: explicit > custom env var > default OPENAI_API_KEY
+    env_key = os.getenv(openai_key_env) if openai_key_env else os.getenv('OPENAI_API_KEY')
+    resolved_key = openai_key or env_key or ''
+    if not resolved_key:
+        return ImgMockAdapter(model=model) if image else TextMockAdapter(model='mock-'+model)
+    base = openai_base or os.getenv('OPENAI_API_BASE') or 'https://api.openai.com/v1'
+    sdk = use_sdk if use_sdk is not None else (os.getenv('USE_OPENAI_SDK') in ('1','true','True'))
+    return (ImgOpenAIAdapter(model=model, api_base=base, api_key=resolved_key, api_key_env=openai_key_env, use_sdk=sdk)
+            if image else TextOpenAIAdapter(model=model, api_base=base, api_key=resolved_key, api_key_env=openai_key_env, use_sdk=sdk))
 
 
 def run_text2d(cfg: Dict, outdir: Path) -> Dict:
     model = cfg.get('model', 'mock')
     size = (cfg.get('text2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
-    workers = int(cfg.get('text2d', {}).get('workers') or 4)
-    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
+    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
 
-    sizes = [size]
+    n = int(cfg.get('text2d', {}).get('n') or 1)
+    start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
+    algorithm = (cfg.get('text2d', {}).get('algorithm') or 'dfs')
+    base_seed = cfg.get('text2d', {}).get('seed') or 0
+
     results = []
-    # sequential for simplicity and deterministic logs
-    for s in tqdm(sizes, desc='Text2D'):
-        start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
-        algorithm = (cfg.get('text2d', {}).get('algorithm') or 'dfs')
-        cfg_m = TextMazeConfig(width=w, height=h, start_goal=start_goal, algorithm=algorithm)
+    for i in tqdm(range(n), desc='Text2D'):
+        cfg_m = TextMazeConfig(width=w, height=h, seed=base_seed + i, start_goal=start_goal, algorithm=algorithm)
         gen = TextMazeGenerator(cfg_m)
         maze = gen.generate()
         anti = TextAntiCheat(seed=maze.get('nonce', 0))
@@ -94,10 +103,9 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
         parsed = parser.parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
         validator = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['trap_zones'], maze['shortest_path'])
         result = validator.validate(parsed.path)
-        metrics = TextMetrics(size=max(h, w))
-        scores = metrics.score(result)
+        scores = TextMetrics(size=max(h, w)).score(result)
         failure_snapshot = '' if result.get('ok') else result.get('error', '')
-        rpath = outdir / f"text2d_report_{model}_{h}x{w}.html"
+        rpath = outdir / f"text2d_report_{model}_{h}x{w}_{i}.html"
         TextReport(str(rpath), maze, parsed.path, scores, failure_snapshot)
         results.append({'scores': scores, 'report': str(rpath)})
     summary_path = outdir / 'text2d_summary.json'
@@ -113,12 +121,13 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     size = (cfg.get('image2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
     n = int(cfg.get('image2d', {}).get('n') or 3)
-    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True)
+    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
 
     results = []
     img_paths = []
+    base_seed = cfg.get('image2d', {}).get('seed') or 0
     for i in tqdm(range(n), desc='Image2D'):
-        gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
+        gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=base_seed+i, trap_ratio=float(cfg.get('image2d', {}).get('trap_ratio') or 0.0), cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
         maze = gen.generate()
         img = gen.render_image(maze)
         img_path = outdir / f"image2d_maze_{h}x{w}_{i}.png"
@@ -152,14 +161,16 @@ def generate_mazes_to_dir(cfg: Dict, outdir: Path, mode: str = 'text2d', count: 
         h, w = map(int, (cfg.get('text2d', {}).get('size') or '10x10').split('x'))
         start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
         algorithm = (cfg.get('text2d', {}).get('algorithm') or 'dfs')
+        base_seed = cfg.get('text2d', {}).get('seed') or 0
         for i in tqdm(range(count), desc='GenOnly Text2D'):
-            gen = TextMazeGenerator(TextMazeConfig(width=w, height=h, start_goal=start_goal, algorithm=algorithm))
+            gen = TextMazeGenerator(TextMazeConfig(width=w, height=h, seed=base_seed+i, start_goal=start_goal, algorithm=algorithm))
             maze = gen.generate()
             (outdir / f'text2d_maze_{h}x{w}_{i}.json').write_text(json.dumps(maze, ensure_ascii=False), encoding='utf-8')
     elif mode == 'image2d':
         h, w = map(int, (cfg.get('image2d', {}).get('size') or '10x10').split('x'))
+        base_seed = cfg.get('image2d', {}).get('seed') or 0
         for i in tqdm(range(count), desc='GenOnly Image2D'):
-            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
+            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=base_seed+i, trap_ratio=float(cfg.get('image2d', {}).get('trap_ratio') or 0.0), cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
             maze = gen.generate()
             img = gen.render_image(maze)
             img.save(outdir / f'image2d_maze_{h}x{w}_{i}.png')
@@ -170,7 +181,7 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
     outdir.mkdir(parents=True, exist_ok=True)
     model = cfg.get('model', 'mock')
     if mode == 'text2d':
-        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
+        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
         results = []
         for mp in sorted(mazes_dir.glob('text2d_maze_*.json')):
             maze = json.loads(mp.read_text(encoding='utf-8'))
@@ -193,7 +204,7 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
         export_summary_pdf(str(outdir / 'text2d_summary.pdf'), 'Text2D Summary', summary)
         return summary
     else:
-        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True)
+        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
         results = []
         img_paths = []
         for jp in sorted(mazes_dir.glob('image2d_maze_*.json')):
