@@ -11,12 +11,13 @@ class MazeConfig:
     seed: Optional[int] = None
     cell_px: int = 24
     start_goal: str = 'corner'  # 'corner' or 'random'
+    algorithm: str = 'dfs'  # 'dfs' or 'prim'
 
 class MazeGenerator:
     def __init__(self, cfg: MazeConfig):
         self.cfg = cfg
         self.rng = np.random.default_rng(cfg.seed)
-        self.core = CommonMazeGenerator(CommonMazeConfig(width=cfg.width, height=cfg.height, seed=cfg.seed, start_goal=self.cfg.start_goal))
+        self.core = CommonMazeGenerator(CommonMazeConfig(width=cfg.width, height=cfg.height, seed=cfg.seed, start_goal=self.cfg.start_goal, algo=self.cfg.algorithm))
 
     def generate(self) -> Dict:
         return self.core.generate()

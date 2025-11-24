@@ -19,6 +19,9 @@ Flags through config keys:
 - text2d.size: e.g. '10x10'
 - image2d.size: e.g. '10x10'; image2d.n: number of mazes
 - output_dir: where outputs/ are stored
+- text2d.algorithm: dfs or prim
+- image2d.algorithm: dfs or prim
+
 - generate_only: if true, only generate and save mazes
 - pre_generated_dir: path to a directory with saved mazes to evaluate without generating
 - mode: text2d/image2d/all to scope generation or evaluation
@@ -81,6 +84,48 @@ python bench.py
 ```
 
 所有输出将统一写入 outputs/：
+### 使用 Conda 配置运行环境（可选）
+如果你倾向于使用 Conda 进行隔离环境管理，可参考以下步骤：
+
+- 创建并激活环境（Python 3.10+ 建议使用 3.11/3.12）
+```
+conda create -n mazebench python=3.11 -y
+conda activate mazebench
+```
+
+- 安装依赖（顶层统一运行推荐）
+```
+pip install -r requirements.txt
+```
+
+- 独立运行 Text2D 或 Image2D（如需）
+```
+# Text2D 仅需 requests
+pip install -r MazeBench-2D/requirements.txt
+
+# Image2D 仅需 requests（核心依赖已在顶层 requirements 安装）
+pip install -r MazeBench-2D-Image/requirements.txt
+```
+
+- 运行
+```
+# 统一入口
+python bench.py
+
+# 或者分别：
+python MazeBench-2D/cli.py --size 10x10 --algorithm dfs
+python MazeBench-2D-Image/cli.py --size 10x10 --algorithm prim
+```
+
+- 退出环境
+```
+conda deactivate
+```
+
+备注：
+- 部分环境在安装 Pillow 或 reportlab 时可能触发编译或下载较慢，建议优先使用官方 Conda Python 版本以及国内镜像源（如通过 pip config 设置 index-url）。
+- 若安装受限，可先使用 --model mock 进行离线验证，或仅执行生成（generate_only）。
+
 - text2d_summary.json / text2d_summary.pdf / text2d_report_*.html
 - image2d_summary.json / image2d_summary.pdf / image2d_report_*.html / image2d_maze_*.png
 
@@ -94,6 +139,36 @@ open MazeBench-2D/examples/report_gpt-4o_10x10.html
 图像 2D（多模态，独立运行）：
 ```
 pip install -r MazeBench-2D-Image/requirements.txt
+python MazeBench-2D-Image/cli.py --size 10x10 --algorithm dfs
+open MazeBench-2D-Image/examples/report_10x10_0.html
+```
+
+图像 2D（多模态，独立运行）：
+```
+pip install -r MazeBench-2D-Image/requirements.txt
+## 选择迷宫生成算法（DFS/Prim）
+
+两种算法均已内置于公共生成核心 common/maze_generator.py，并通过配置或 CLI 参数选择：
+
+- DFS（默认）：偏置的自避免深度优先挖掘，先主路径，后有限分支，并引入“柱子”抑制大开阔区，生成树状走廊，分支较多、死胡同明显。
+- Prim：随机 Prim 风格生长，从起点扩展生成生成树，通道更均匀，环较少（树结构）。
+
+配置文件方式：
+```
+text2d:
+  size: '20x20'
+  algorithm: prim
+image2d:
+  size: '20x20'
+  algorithm: dfs
+```
+
+命令行方式：
+- 文本 2D：`python MazeBench-2D/cli.py --size 20x20 --algorithm prim`
+- 图像 2D：`python MazeBench-2D-Image/cli.py --size 20x20 --algorithm dfs`
+
+统一入口 bench.py 也会读取 config/config.yaml 中的 text2d.algorithm / image2d.algorithm，并在 generate_only 模式下写入对应算法生成的迷宫。
+
 python MazeBench-2D-Image/cli.py
 open MazeBench-2D-Image/examples/report_10x10_0.html
 ```
@@ -108,6 +183,43 @@ open MazeBench-2D-Image/examples/report_10x10_0.html
 ## 多模态适配器
 - 默认 MockAdapter：在无外部API时生成一个可解析但不一定可行的路径，验证与评分仍然执行
 - OpenAIAdapter（可选）：设置 OPENAI_API_KEY 后，支持 vision chat（文本+图像）输入
+
+## 代码文件结构与说明
+
+顶层目录：
+- bench.py：统一入口，读取配置，调度 Text2D / Image2D 两种模式的生成、评测与报告生成；支持 generate_only 与从预生成资产评测。
+- requirements.txt：运行依赖列表（numpy、Pillow、PyYAML、reportlab、requests、tqdm）。
+- config/
+  - config.yaml：主配置文件，包含 text2d.* 与 image2d.* 参数（包括 algorithm），以及统一输出目录等。
+  - local.yaml（可选）：本地私密配置，gitignore 已忽略；可覆盖部分密钥或参数。
+- common/
+  - maze_generator.py：公共迷宫生成核心，提供可扩展的算法注册与调度，当前支持 'dfs' 与 'prim'；统一生成网格、起终点与 shortest_path。
+  - config_loader.py：加载与合并配置（config.yaml + local.yaml + 环境变量），并为 bench.py 提供字典形式的最终配置。
+- outputs/：统一输出目录；包含 mazes_text2d/ 与 mazes_image2d/ 子目录用于 generate_only 的资产保存。
+
+文本模式（MazeBench-2D/）：
+- cli.py：文本模式的命令行入口，支持 --size, --model, --algorithm 等参数；运行后在 examples/ 生成报告。
+- maze_gen/generator.py：文本迷宫生成器，封装 MazeConfig（含 algorithm）并调用 common 生成核心，输出网格与 shortest_path。
+- eval_core/：文本输出解析与验证模块，包含路径解析器、合法性与最优性验证、评分逻辑；与报告模块协作生成评测摘要。
+- report/：HTML 报告生成模块，绘制热力、雷达与对比可视化。
+- model_gateways/：模型适配接口（Mock/OpenAI/Anthropic 等），通过统一协议调用模型并返回路径文本。
+- config/：模式内的默认参数与示例配置。
+- examples/：运行示例输出目录（HTML 报告与 JSON 摘要）。
+
+图像模式（MazeBench-2D-Image/）：
+- cli.py：图像模式命令行入口，支持 --size, --algorithm 等；运行后在 examples/ 生成报告与PNG。
+- maze_gen/generator.py：图像迷宫生成器，封装 MazeConfig（含 algorithm）并调用 common 生成核心，随后渲染为 PIL 图片（标注起点与终点）。
+- eval_core/：图像模式下的输出解析与验证（与文本模式保持一致的接口）。
+- report/：HTML 报告生成模块（图像版）。
+- model_gateways/：多模态模型适配接口（Mock/OpenAI 等）。
+- config/：模式内默认参数与示例配置。
+- examples/：运行示例输出目录（HTML/JSON/PNG）。
+
+扩展点（算法）：
+- 在 common/maze_generator.py 中新增 _apply_xxx 与对应算法实现，并在 algo_map 注册：
+  - 'dfs'：递归回溯/深度优先风格，先主路径后分支，辅以柱体控制开阔度。
+  - 'prim'：随机 Prim 生长，保持生成树结构与较均匀的通道分布。
+- 新算法只需实现 carve 逻辑并注册到 algo_map，即可被两种模式与 bench.py 统一调用。
 
 ## 目录结构
 - MazeBench-2D：文本模式实现与说明

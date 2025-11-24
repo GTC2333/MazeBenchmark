@@ -4,12 +4,16 @@
 model: mock
 # Optionally override per benchmark below
 text2d:
-  size: '10x10'
+  size: '50x50'
+  algorithm: dfs  # dfs or prim
+
   workers: 4
   start_goal: corner  # corner or random
 image2d:
-  size: '10x10'
-  n: 3
+  algorithm: dfs  # dfs or prim
+
+  size: '50x50'
+  n: 5
   trap_ratio: 0.0
   cell_px: 24
   start_goal: corner  # corner or random

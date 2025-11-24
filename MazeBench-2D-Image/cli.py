@@ -71,6 +71,7 @@ def main():
     parser.add_argument('--n', type=int, default=3)
     parser.add_argument('--cell_px', type=int, default=24)
     parser.add_argument('--start_goal', choices=['corner','random'], default='corner')
+    parser.add_argument('--algorithm', choices=['dfs','prim'], default='dfs')
     parser.add_argument('--out_dir', default='MazeBench-2D-Image/examples')
     args = parser.parse_args()
     h, w = map(int, args.size.split('x'))
@@ -78,7 +79,7 @@ def main():
     results = []
     for i in tqdm(range(rcfg.n)):
         # pass start_goal via generator config
-        gen = MazeGenerator(MazeConfig(width=rcfg.width, height=rcfg.height, seed=(rcfg.seed or 0)+i, cell_px=rcfg.cell_px, start_goal=args.start_goal))
+        gen = MazeGenerator(MazeConfig(width=rcfg.width, height=rcfg.height, seed=(rcfg.seed or 0)+i, cell_px=rcfg.cell_px, start_goal=args.start_goal, algorithm=args.algorithm))
         maze = gen.generate()
         img = gen.render_image(maze)
         out_dir = Path(rcfg.out_dir)

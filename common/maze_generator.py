@@ -10,6 +10,7 @@ class CommonMazeConfig:
     height: int
     seed: Optional[int] = None
     start_goal: str = 'corner'  # 'corner' or 'random'
+    algo: str = 'dfs'  # 'dfs' or 'prim'
 
 class CommonMazeGenerator:
     def __init__(self, cfg: CommonMazeConfig):
@@ -156,6 +157,38 @@ class CommonMazeGenerator:
                     if self.rng.random() < 0.35:
                         if (r+1, c+1) not in avoid:
                             block[1,1] = 1
+    def _carve_prim_tree(self, grid: np.ndarray, start: Coord) -> None:
+        # Randomized Prim-style growth: expand a spanning tree over the grid
+        carved: Set[Coord] = set()
+        grid[start] = 0
+        carved.add(start)
+        frontier: Set[Coord] = set(self._wall_neighbors(start[0], start[1], grid))
+        h, w = grid.shape
+        max_iters = h*w*8
+        iters = 0
+        while frontier and iters < max_iters:
+            iters += 1
+            # pick a random frontier wall cell
+            idx = int(self.rng.integers(0, len(frontier)))
+            cell = list(frontier)[idx]
+            frontier.discard(cell)
+            frn = self._free_neighbors(cell[0], cell[1], grid)
+            # carve only if it connects to exactly one carved neighbor to keep tree structure
+            if len(frn) == 1:
+                r, c = cell
+                grid[r, c] = 0
+                carved.add(cell)
+                for nbr in self._wall_neighbors(r, c, grid):
+                    frontier.add(nbr)
+
+    # Algorithm registry for extensibility
+    def _apply_dfs(self, grid: np.ndarray, start: Coord, goal: Coord) -> None:
+        main_path = self._carve_main_path(grid, start, goal)
+        carved = self._carve_branches(grid, main_path)
+        self._introduce_pillars(grid, carved)
+
+    def _apply_prim(self, grid: np.ndarray, start: Coord, goal: Coord) -> None:
+        self._carve_prim_tree(grid, start)
 
     def generate(self, start: Optional[Coord] = None, goal: Optional[Coord] = None) -> Dict:
         h, w = self.cfg.height, self.cfg.width
@@ -171,9 +204,11 @@ class CommonMazeGenerator:
                 start = (0, 0)
                 goal = (h-1, w-1)
         grid = np.ones((h, w), dtype=np.int8)
-        main_path = self._carve_main_path(grid, start, goal)
-        carved = self._carve_branches(grid, main_path)
-        self._introduce_pillars(grid, carved)
+        algo_map = {
+            'dfs': lambda: self._apply_dfs(grid, start, goal),
+            'prim': lambda: self._apply_prim(grid, start, goal),
+        }
+        (algo_map.get(self.cfg.algo, algo_map['dfs']))()
         # ensure endpoints
         grid[start] = 0
         grid[goal] = 0
