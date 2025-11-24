@@ -1,4 +1,71 @@
-# MazeBenchmark
+# Maze Benchmark
+
+This repository provides unified 2D maze benchmarks for LLMs with two modes:
+1) Text2D: text-only input/output
+2) Image2D: image input + text output (multimodal)
+
+Both modes share a common generation core (structure-first; no legacy density), unified configuration (including start_goal placement), execution flow, and output structures.
+
+## Running
+
+Single entrypoint:
+
+    python bench.py
+
+Configuration at config/config.yaml. Secrets can be placed in a local.yaml ignored by git.
+
+Flags through config keys:
+- model: adapter name (mock or provider-specific)
+- text2d.size: e.g. '10x10'
+- image2d.size: e.g. '10x10'; image2d.n: number of mazes
+- output_dir: where outputs/ are stored
+- generate_only: if true, only generate and save mazes
+- pre_generated_dir: path to a directory with saved mazes to evaluate without generating
+- mode: text2d/image2d/all to scope generation or evaluation
+
+Outputs:
+- JSON summaries per mode: text2d_summary.json, image2d_summary.json
+- HTML reports per run with details
+- PDF summaries via ReportLab: text2d_summary.pdf, image2d_summary.pdf
+- overview.json aggregating averages
+
+Generate-only saves assets under outputs/mazes_text2d or outputs/mazes_image2d.
+Pre-generated evaluation consumes assets named text2d_maze_* or image2d_maze_*.json/.png in the specified directory.
+
+## 3D Roadmap
+
+Planned 3D maze benchmark:
+- Voxels-based 3D grid with start/goal on different floors
+- Rendering: simple orthographic slices + isometric projection images
+- Input: image stacks or short video; Output: textual path or command sequence
+- Parameters (structure-first, no density): corridor width, branch frequency, turn bias, loop bias, verticality ratio, entrance/exit placement, dead-end frequency, trap ratio
+- Evaluation: shortest-path validation, collision checks, step budget, time-to-solve
+- Adapters: extend current interface to pass video frames
+
+Phases:
+1) 3D generator and renderer (mock assets)
+2) Parser/validator for 3D paths
+3) Metrics and reporting unified with 2D
+4) Multimodal adapters (image stack/video)
+5) End-to-end integration in bench.py
+
+## Parameter effects and realism
+
+New generation method (no density):
+- Main path via random walk with local turn bias; avoids long straights and diagonal dominance
+- Branching tree style: sample along main path to carve short branches ending in dead-ends
+- Wall dispersion: break up large continuous blocks and limit global wall ratio
+
+Key parameters:
+- trap_ratio: percentage of trap cells; increases path risk and penalizes unsafe routes
+- seed: random seed for reproducibility; use varied seeds for diversity
+- cell_px (Image2D): pixel size per cell; larger values create clearer visuals
+- start/goal placement: corners vs random; affects path length distribution
+
+Recommended ranges:
+- trap_ratio: 0.0–0.2 depending on difficulty
+- size: 10x10–40x40 for practical benchmarking
+
 一个用于评测大模型空间推理与路径规划能力的开源基准，包含：
 - 2D 文本迷宫（MazeBench-2D）：以文本网格为输入，路径坐标列表为输出
 - 2D 图像迷宫（MazeBench-2D-Image）：以PNG图像为输入，路径坐标列表为输出（多模态）
@@ -34,7 +101,7 @@ open MazeBench-2D-Image/examples/report_10x10_0.html
 若未配置 OPENAI_API_KEY 等外部密钥，系统将自动使用 MockAdapter，确保流水线在离线/CI 环境可运行。
 
 ## 两种模式的差异与一致性
-- 一致参数：宽高、障碍密度、陷阱比例、随机种子、最短路径计算与连通性保证
+- 一致参数：宽高、陷阱比例、随机种子、最短路径计算与连通性保证（不使用密度参数）
 - 差异输入：文本网格 vs PNG 像素化迷宫（标注绿色起点、红色终点）
 - 一致评测：解析容忍多格式、路径合法性与最优性验证、S/Q/R/A 四维评分、HTML 报告
 
@@ -79,7 +146,7 @@ open MazeBench-2D/examples/report_gpt-4o_10x10.html
 生成 → 输入构造 → 模型调用 → 输出解析 → 多维验证 → 报告生成，全流程无需人工干预，适配 CI/CD。
 
 ## 模块结构
-- maze_gen：参数化生成标准化迷宫，支持 5×5 至 40×40，含障碍密度与陷阱比例；BFS 连通性验证并输出 shortest_path 与 trap_zones。
+- maze_gen：参数化生成标准化迷宫，支持 5×5 至 40×40；不再使用密度参数，转为结构优先（自避免主路径、受限分支、柱体保留），保证连通并输出 shortest_path 与 trap_zones。
 - eval_core：多格式解析器（容忍坐标列表/方向序列/含注释/行列混淆/JSON数组/括号变体/纯数字对），四层验证（有效性→陷阱检测→最优性→鲁棒性），动态加权评分 S/Q/R/A。
 - model_gateways：统一模型适配（OpenAI/Anthropic），使用 requests，无深度学习框架。
 - report：生成交互式 HTML 报告（综合得分、雷达图、热力图、路径对比与失败快照）。
