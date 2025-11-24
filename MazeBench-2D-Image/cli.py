@@ -87,7 +87,7 @@ def main():
         out_dir.mkdir(parents=True, exist_ok=True)
         img_path = out_dir / f"maze_{rcfg.width}x{rcfg.height}_{i}.png"
         img.save(img_path)
-        anti = AntiCheat(seed=(rcfg.seed or 0))
+        anti = AntiCheat(seed=maze.get('nonce', (rcfg.seed or 0)))
         maze_in = anti.perturb_input(maze)
         adapter = get_adapter()
         prompt = build_prompt(maze_in)

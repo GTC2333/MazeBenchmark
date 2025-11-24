@@ -114,7 +114,8 @@ class CommonMazeGenerator:
             cell = list(frontier)[int(self.rng.integers(0, len(frontier)))]
             frontier.discard(cell)
             frn = [nbr for nbr in self._free_neighbors(cell[0], cell[1], grid) if nbr in carved]
-            if frn:
+            # Carve only if it connects to exactly one carved neighbor to avoid cycles (Prim's algorithm)
+            if len(frn) == 1:
                 grid[cell[0], cell[1]] = 0
                 carved.add(cell)
                 for dr, dc in [(1,0),(-1,0),(0,1),(0,-1)]:
