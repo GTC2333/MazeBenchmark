@@ -5,6 +5,7 @@ from typing import Dict
 from dataclasses import dataclass
 from tqdm import tqdm
 
+import argparse
 from maze_gen.generator import MazeConfig, MazeGenerator
 from eval_core.parser import OutputParser
 from eval_core.validator import Validator
@@ -65,14 +66,41 @@ def run_single(cfg: RunConfig, idx: int):
 
 
 def main():
-    rcfg = RunConfig()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--size', default='10x10')
+    parser.add_argument('--n', type=int, default=3)
+    parser.add_argument('--cell_px', type=int, default=24)
+    parser.add_argument('--start_goal', choices=['corner','random'], default='corner')
+    parser.add_argument('--out_dir', default='MazeBench-2D-Image/examples')
+    args = parser.parse_args()
+    h, w = map(int, args.size.split('x'))
+    rcfg = RunConfig(width=w, height=h, n=args.n, cell_px=args.cell_px, out_dir=args.out_dir)
     results = []
     for i in tqdm(range(rcfg.n)):
-        results.append(run_single(rcfg, i))
-    summary = {
-        'avg_total': round(sum(r['scores']['total'] for r in results)/len(results), 2),
-        'items': results
-    }
+        # pass start_goal via generator config
+        gen = MazeGenerator(MazeConfig(width=rcfg.width, height=rcfg.height, seed=(rcfg.seed or 0)+i, cell_px=rcfg.cell_px, start_goal=args.start_goal))
+        maze = gen.generate()
+        img = gen.render_image(maze)
+        out_dir = Path(rcfg.out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        img_path = out_dir / f"maze_{rcfg.width}x{rcfg.height}_{i}.png"
+        img.save(img_path)
+        anti = AntiCheat(seed=(rcfg.seed or 0))
+        maze_in = anti.perturb_input(maze)
+        adapter = get_adapter()
+        prompt = build_prompt(maze_in)
+        text = adapter.generate(prompt, image_path=str(img_path))
+        parser_o = OutputParser()
+        parsed = parser_o.parse_with_fallback(text, adapter=None)
+        val = Validator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
+        vres = val.validate(parsed.path)
+        scores = Metrics().score(vres)
+        fail = '' if vres.get('ok') else f"Failure: {vres.get('error')} Raw: {parsed.raw[:200]}"
+        report_path = out_dir / f"report_{rcfg.width}x{rcfg.height}_{i}.html"
+        generate_report(str(report_path), maze, parsed.path, scores, fail, str(img_path))
+        results.append({'scores': scores, 'report': str(report_path), 'raw': parsed.raw})
+    avg_total = round(sum(r['scores']['total'] for r in results)/len(results), 2) if results else 0
+    summary = {'avg_total': avg_total, 'items': results}
     Path(rcfg.out_dir, 'summary_image.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     print('Done. See', rcfg.out_dir)
 

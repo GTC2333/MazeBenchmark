@@ -146,7 +146,7 @@ open MazeBench-2D/examples/report_gpt-4o_10x10.html
 生成 → 输入构造 → 模型调用 → 输出解析 → 多维验证 → 报告生成，全流程无需人工干预，适配 CI/CD。
 
 ## 模块结构
-- maze_gen：参数化生成标准化迷宫，支持 5×5 至 40×40，含障碍密度与陷阱比例；BFS 连通性验证并输出 shortest_path 与 trap_zones。
+- maze_gen：参数化生成标准化迷宫，支持 5×5 至 40×40；不再使用密度参数，转为结构优先（自避免主路径、受限分支、柱体保留），保证连通并输出 shortest_path 与 trap_zones。
 - eval_core：多格式解析器（容忍坐标列表/方向序列/含注释/行列混淆/JSON数组/括号变体/纯数字对），四层验证（有效性→陷阱检测→最优性→鲁棒性），动态加权评分 S/Q/R/A。
 - model_gateways：统一模型适配（OpenAI/Anthropic），使用 requests，无深度学习框架。
 - report：生成交互式 HTML 报告（综合得分、雷达图、热力图、路径对比与失败快照）。
