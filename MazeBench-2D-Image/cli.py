@@ -47,7 +47,7 @@ def run_single(cfg: RunConfig, idx: int):
     img_path = out_dir / f"maze_{cfg.width}x{cfg.height}_{idx}.png"
     img.save(img_path)
 
-    anti = AntiCheat(seed=(cfg.seed or 0))
+    anti = AntiCheat(seed=maze.get('nonce', 0))
     maze_in = anti.perturb_input(maze)
     adapter = get_adapter()
     prompt = build_prompt(maze_in)
@@ -72,10 +72,11 @@ def main():
     parser.add_argument('--cell_px', type=int, default=24)
     parser.add_argument('--start_goal', choices=['corner','random'], default='corner')
     parser.add_argument('--algorithm', choices=['dfs','prim'], default='dfs')
+    parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--out_dir', default='MazeBench-2D-Image/examples')
     args = parser.parse_args()
     h, w = map(int, args.size.split('x'))
-    rcfg = RunConfig(width=w, height=h, n=args.n, cell_px=args.cell_px, out_dir=args.out_dir)
+    rcfg = RunConfig(width=w, height=h, n=args.n, cell_px=args.cell_px, out_dir=args.out_dir, seed=args.seed)
     results = []
     for i in tqdm(range(rcfg.n)):
         # pass start_goal via generator config

@@ -33,5 +33,6 @@ class MazeGenerator:
             'goal': base['goal'],
             'trap_zones': trap_zones,
             'shortest_path': sp,
+            'nonce': int(self.cfg.seed) if self.cfg.seed is not None else int(base.get('nonce', 0)),
         }
 

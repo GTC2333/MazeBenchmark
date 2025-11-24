@@ -103,6 +103,33 @@ pip install -r requirements.txt
 # Text2D 仅需 requests
 pip install -r MazeBench-2D/requirements.txt
 
+### 配置与命令行示例（算法与种子）
+
+在 config/config.yaml 中选择算法与种子：
+```
+text2d:
+  size: '50x50'
+  algorithm: dfs
+  seed: 123
+image2d:
+  algorithm: prim
+  seed: 123
+  size: '50x50'
+  n: 5
+```
+
+命令行（Text2D 独立运行）：
+```
+python MazeBench-2D/cli.py --model mock --size 20x20 --algorithm prim --start_goal random --seed 42
+```
+
+命令行（Image2D 独立运行）：
+```
+python MazeBench-2D-Image/cli.py --size 20x20 --n 3 --algorithm dfs --start_goal corner --seed 100
+```
+
+在 bench.py 的 generate_only 模式下，会读取上述配置并生成固定种子可复现的样例。
+
 # Image2D 仅需 requests（核心依赖已在顶层 requirements 安装）
 pip install -r MazeBench-2D-Image/requirements.txt
 ```
@@ -168,6 +195,11 @@ image2d:
 - 图像 2D：`python MazeBench-2D-Image/cli.py --size 20x20 --algorithm dfs`
 
 统一入口 bench.py 也会读取 config/config.yaml 中的 text2d.algorithm / image2d.algorithm，并在 generate_only 模式下写入对应算法生成的迷宫。
+统一入口 bench.py 会读取 config/config.yaml 中的参数，包括：
+- text2d.algorithm / image2d.algorithm：迷宫生成算法（dfs/prim）
+- text2d.seed / image2d.seed：随机种子（用于可复现性）。在批量生成时，系统会使用 base seed + 索引 的策略，例如 image2d.seed=123，生成第 i 个样例使用 seed=123+i。
+并且在 generate_only 模式下写入对应算法与种子的迷宫到 outputs/mazes_* 目录。
+
 
 python MazeBench-2D-Image/cli.py
 open MazeBench-2D-Image/examples/report_10x10_0.html
@@ -189,8 +221,10 @@ open MazeBench-2D-Image/examples/report_10x10_0.html
 顶层目录：
 - bench.py：统一入口，读取配置，调度 Text2D / Image2D 两种模式的生成、评测与报告生成；支持 generate_only 与从预生成资产评测。
 - requirements.txt：运行依赖列表（numpy、Pillow、PyYAML、reportlab、requests、tqdm）。
+  - config.yaml：主配置文件，包含 text2d.* 与 image2d.* 参数（包括 algorithm 与 seed），以及统一输出目录等。
+
 - config/
-  - config.yaml：主配置文件，包含 text2d.* 与 image2d.* 参数（包括 algorithm），以及统一输出目录等。
+  - config.yaml：主配置文件，包含 text2d.* 与 image2d.* 参数（包括 algorithm 与 seed），以及统一输出目录等。
   - local.yaml（可选）：本地私密配置，gitignore 已忽略；可覆盖部分密钥或参数。
 - common/
   - maze_generator.py：公共迷宫生成核心，提供可扩展的算法注册与调度，当前支持 'dfs' 与 'prim'；统一生成网格、起终点与 shortest_path。

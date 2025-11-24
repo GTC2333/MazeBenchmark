@@ -6,11 +6,13 @@ model: mock
 text2d:
   size: '50x50'
   algorithm: dfs  # dfs or prim
+  seed: 123  # base random seed for reproducibility
 
   workers: 4
   start_goal: corner  # corner or random
 image2d:
-  algorithm: dfs  # dfs or prim
+  algorithm: prim  # dfs or prim
+  seed: 123  # base random seed for reproducibility
 
   size: '50x50'
   n: 5

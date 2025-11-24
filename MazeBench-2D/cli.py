@@ -41,9 +41,9 @@ def get_adapter(model_name: str):
     raise ValueError('unknown model')
 
 
-def run_single(size: str, model: str, outdir: Path, start_goal: str, algorithm: str):
+def run_single(size: str, model: str, outdir: Path, start_goal: str, algorithm: str, seed: int | None):
     h, w = map(int, size.split('x'))
-    cfg = MazeConfig(width=w, height=h, start_goal=start_goal, algorithm=algorithm)
+    cfg = MazeConfig(width=w, height=h, seed=seed, start_goal=start_goal, algorithm=algorithm)
     gen = MazeGenerator(cfg)
     maze = gen.generate()
     anti = AntiCheat(seed=maze.get('nonce', 0))
@@ -72,6 +72,7 @@ def main():
     ap.add_argument('--outdir', default='examples')
     ap.add_argument('--start_goal', choices=['corner','random'], default='corner', help='起点/终点放置策略')
     ap.add_argument('--algorithm', choices=['dfs','prim'], default='dfs', help='迷宫生成算法')
+    ap.add_argument('--seed', type=int, default=None, help='随机种子')
     args = ap.parse_args()
 
     outdir = Path(args.outdir)
@@ -81,7 +82,7 @@ def main():
 
     results = []
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {ex.submit(run_single, s, args.model, outdir, args.start_goal, args.algorithm): s for s in sizes}
+        futs = {ex.submit(run_single, s, args.model, outdir, args.start_goal, args.algorithm, args.seed): s for s in sizes}
         for f in tqdm(as_completed(futs), total=len(futs)):
             try:
                 results.append(f.result())
