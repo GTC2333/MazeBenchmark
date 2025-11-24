@@ -26,7 +26,9 @@ class MazeGenerator:
 
     def render_image(self, maze: Dict) -> Image.Image:
         cell = self.cfg.cell_px
+
         h, w = maze['height'], maze['width']
+        # No outer border; image size equals maze grid size
         img = Image.new('RGB', (w*cell, h*cell), (255,255,255))
         draw = ImageDraw.Draw(img)
         for r in range(h):

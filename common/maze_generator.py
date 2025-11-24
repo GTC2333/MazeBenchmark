@@ -16,6 +16,17 @@ class CommonMazeGenerator:
     def __init__(self, cfg: CommonMazeConfig):
         self.cfg = cfg
         self.rng = np.random.default_rng(cfg.seed)
+        # Extensible algorithm registry: handlers accept (grid, start, goal)
+        self._algo_map = {
+            'dfs': lambda grid, start, goal: self._apply_dfs(grid, start, goal),
+            'prim': lambda grid, start, goal: self._apply_prim(grid, start, goal),
+        }
+
+    def register_algo(self, name: str, handler):
+        """Register a new maze carving algorithm.
+        Handler signature: handler(grid: np.ndarray, start: Coord, goal: Coord) -> None
+        """
+        self._algo_map[name] = handler
 
     def _in_bounds(self, r: int, c: int, grid: np.ndarray) -> bool:
         h, w = grid.shape
@@ -146,11 +157,8 @@ class CommonMazeGenerator:
             goal = (goal[0] - goal[0] % 2, goal[1] - goal[1] % 2)
         grid = np.ones((h, w), dtype=np.int8)
 
-        algo_map = {
-            'dfs': lambda: self._apply_dfs(grid, start, goal),
-            'prim': lambda: self._apply_prim(grid, start, goal),
-        }
-        (algo_map.get(self.cfg.algo, algo_map['dfs']))()
+        handler = self._algo_map.get(self.cfg.algo, self._algo_map['dfs'])
+        handler(grid, start, goal)
 
         # Final safety: ensure start & goal are open (in case algo missed)
         grid[start] = 0
