@@ -23,7 +23,8 @@ class MazeGenerator:
     def generate(self) -> Dict:
         base = self.core.generate()
         grid = np.array(base['grid'], dtype=np.int8)
-        trap_zones = self.traps.inject(grid, ratio=self.cfg.trap_ratio)
+        # 文本迷宫：只标注陷阱，不改变拓扑，避免生成死路或不可达
+        trap_zones = self.traps.inject(grid.copy(), ratio=self.cfg.trap_ratio)
         sp = self.core._shortest_path(grid, base['start'], base['goal'])
         return {
             'width': base['width'],

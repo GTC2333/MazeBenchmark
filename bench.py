@@ -11,9 +11,13 @@ from common.pdf_export import export_summary_pdf
 import sys, types
 from importlib import import_module
 
+base_dir = Path(__file__).parent.resolve()
+# ensure repo root on sys.path so "common" and others are importable
+if str(base_dir) not in sys.path:
+    sys.path.insert(0, str(base_dir))
 _alias_map = {
-    'MazeBench_2D': Path('MazeBench-2D'),
-    'MazeBench_2D_Image': Path('MazeBench-2D-Image'),
+    'MazeBench_2D': base_dir / 'MazeBench-2D',
+    'MazeBench_2D_Image': base_dir / 'MazeBench-2D-Image',
 }
 for alias, dpath in _alias_map.items():
     pkg = types.ModuleType(alias)

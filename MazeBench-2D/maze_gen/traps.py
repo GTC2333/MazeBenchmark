@@ -23,19 +23,13 @@ class TrapInjector:
             # Randomly assign trap type
             t = self.rng.choice(['dead_end', 'bottleneck', 'dynamic'])
             if t == 'dead_end':
-                # Create a cul-de-sac by turning neighbors into walls except one
-                neigh = list(self._neighbors(r, c, grid))
-                self.rng.shuffle(neigh)
-                for nr, nc in neigh[1:]:
-                    grid[nr, nc] = 1
+                # 标记为“死路”陷阱，但不改动迷宫拓扑，避免破坏可达性
                 traps['dead_ends'].append((r, c))
             elif t == 'bottleneck':
-                # Narrow passage: set surrounding ring to walls leaving a single pass
-                for nr, nc in self._ring(r, c, grid):
-                    grid[nr, nc] = 1
+                # 标记为“瓶颈”陷阱，不改动网格；评估器会在路径经过时判定失败
                 traps['bottlenecks'].append((r, c))
             else:
-                # Dynamic: mark but keep cell free; evaluator can penalize stepping after t
+                # 动态障碍：仅做标记，评估器负责处罚
                 traps['dynamic_obstacles'].append((r, c))
         return traps
 
