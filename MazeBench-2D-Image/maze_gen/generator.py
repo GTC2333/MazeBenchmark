@@ -41,8 +41,11 @@ class MazeGenerator:
             for c in range(w):
                 x0, y0 = (c+1)*cell, (r+1)*cell
                 x1, y1 = x0+cell-1, y0+cell-1
+                is_edge = (r == 0 or r == h-1 or c == 0 or c == w-1)
                 if maze['grid'][r][c] == 1:
-                    draw.rectangle([x0, y0, x1, y1], fill=(0,0,0))
+                    # Avoid double-thick border: skip filling edge ring; outer border already drawn
+                    if not is_edge:
+                        draw.rectangle([x0, y0, x1, y1], fill=(0,0,0))
                 else:
                     draw.rectangle([x0, y0, x1, y1], outline=(200,200,200))
         # Start/goal markers also offset by +1 cell, coordinates remain unchanged elsewhere
