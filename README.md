@@ -16,8 +16,8 @@ Configuration at config/config.yaml. Secrets can be placed in a local.yaml ignor
 
 Flags through config keys:
 - model: adapter name (mock or provider-specific)
-- text2d.size: e.g. '10x10'
-- image2d.size: e.g. '10x10'; image2d.n: number of mazes
+- text2d.size: e.g. '11x11' (recommended odd×odd)
+- image2d.size: e.g. '11x11'; image2d.n: number of mazes (recommended odd×odd)
 - output_dir: where outputs/ are stored
 - text2d.algorithm: dfs or prim
 - image2d.algorithm: dfs or prim
@@ -62,7 +62,7 @@ New generation method (no density):
 Key parameters:
 - trap_ratio: percentage of trap cells; increases path risk and penalizes unsafe routes
 - seed: random seed for reproducibility; use varied seeds for diversity
-- cell_px (Image2D): pixel size per cell; larger values create clearer visuals
+- cell_px (Image2D): pixel size per cell; larger values create clearer visuals; final image equals maze grid (no outer border)
 - start/goal placement: corners vs random; affects path length distribution
 
 Recommended ranges:
@@ -108,24 +108,24 @@ pip install -r MazeBench-2D/requirements.txt
 在 config/config.yaml 中选择算法与种子：
 ```
 text2d:
-  size: '50x50'
+  size: '11x11'
   algorithm: dfs
   seed: 123
 image2d:
   algorithm: prim
   seed: 123
-  size: '50x50'
+  size: '11x11'
   n: 5
 ```
 
 命令行（Text2D 独立运行）：
 ```
-python MazeBench-2D/cli.py --model mock --size 20x20 --algorithm prim --start_goal random --seed 42
+python MazeBench-2D/cli.py --model mock --size 21x21 --algorithm prim --start_goal random --seed 42
 ```
 
 命令行（Image2D 独立运行）：
 ```
-python MazeBench-2D-Image/cli.py --size 20x20 --n 3 --algorithm dfs --start_goal corner --seed 100
+python MazeBench-2D-Image/cli.py --size 21x21 --n 3 --algorithm dfs --start_goal corner --seed 100
 ```
 
 在 bench.py 的 generate_only 模式下，会读取上述配置并生成固定种子可复现的样例。
@@ -140,8 +140,8 @@ pip install -r MazeBench-2D-Image/requirements.txt
 python bench.py
 
 # 或者分别：
-python MazeBench-2D/cli.py --size 10x10 --algorithm dfs
-python MazeBench-2D-Image/cli.py --size 10x10 --algorithm prim
+python MazeBench-2D/cli.py --size 11x11 --algorithm dfs
+python MazeBench-2D-Image/cli.py --size 11x11 --algorithm prim
 ```
 
 - 退出环境
@@ -159,15 +159,15 @@ conda deactivate
 文本 2D（独立运行）：
 ```
 pip install -r MazeBench-2D/requirements.txt
-python MazeBench-2D/cli.py --model gpt-4o --size 10x10 --workers 4
-open MazeBench-2D/examples/report_gpt-4o_10x10.html
+python MazeBench-2D/cli.py --model gpt-4o --size 11x11 --workers 4
+open MazeBench-2D/examples/report_gpt-4o_11x11.html
 ```
 
 图像 2D（多模态，独立运行）：
 ```
 pip install -r MazeBench-2D-Image/requirements.txt
-python MazeBench-2D-Image/cli.py --size 10x10 --algorithm dfs
-open MazeBench-2D-Image/examples/report_10x10_0.html
+python MazeBench-2D-Image/cli.py --size 11x11 --algorithm dfs
+open MazeBench-2D-Image/examples/report_11x11_0.html
 ```
 
 图像 2D（多模态，独立运行）：
@@ -213,16 +213,16 @@ pip install -r MazeBench-2D-Image/requirements.txt
 配置文件方式：
 ```
 text2d:
-  size: '20x20'
+  size: '11x11'
   algorithm: prim
 image2d:
-  size: '20x20'
+  size: '11x11'
   algorithm: dfs
 ```
 
 命令行方式：
-- 文本 2D：`python MazeBench-2D/cli.py --size 20x20 --algorithm prim`
-- 图像 2D：`python MazeBench-2D-Image/cli.py --size 20x20 --algorithm dfs`
+- 文本 2D：`python MazeBench-2D/cli.py --size 21x21 --algorithm prim`
+- 图像 2D：`python MazeBench-2D-Image/cli.py --size 21x21 --algorithm dfs`
 
 统一入口 bench.py 也会读取 config/config.yaml 中的 text2d.algorithm / image2d.algorithm，并在 generate_only 模式下写入对应算法生成的迷宫。
 统一入口 bench.py 会读取 config/config.yaml 中的参数，包括：
@@ -331,7 +331,7 @@ open MazeBench-2D/examples/report_gpt-4o_10x10.html
 
 ## 离线/CI 模式
 - 若未设置 OPENAI_API_KEY/ANTHROPIC_API_KEY，CLI 将自动回退到 MockAdapter，确保流水线在 CI 环境无外部服务也可运行。
-- 显式使用本地模型：`python MazeBench-2D/cli.py --model mock --size 10x10` 或 `--model mock-gpt-4o`。
+- 显式使用本地模型：`python MazeBench-2D/cli.py --model mock --size 11x11` 或 `--model mock-gpt-4o`。
 - 报告与摘要同样生成于 examples/，用于验证端到端可用性。
 
 ## 指标定义

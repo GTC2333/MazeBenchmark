@@ -4,7 +4,7 @@
 model: mock
 # Optionally override per benchmark below
 text2d:
-  size: '50x50'
+  size: '11x11'  # use odd×odd sizes for classic stride-2 wall mazes
   algorithm: dfs  # dfs or prim
   seed: 123  # base random seed for reproducibility
   n: 3  # number of text mazes to run/generate
@@ -15,10 +15,10 @@ image2d:
   algorithm: dfs  # dfs or prim
   seed: 123  # base random seed for reproducibility
 
-  size: '10x10'
+  size: '11x11'  # use odd×odd sizes for classic stride-2 wall mazes
   n: 5
   trap_ratio: 0.0
-  cell_px: 24  # each cell pixel size; final image has a 1-cell border => (n+2) x (n+2) cells
+  cell_px: 24  # pixel size per cell; final image equals maze grid (no outer border)
   start_goal: corner  # corner or random
 output_dir: outputs
 
