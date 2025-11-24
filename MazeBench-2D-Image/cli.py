@@ -1,9 +1,13 @@
 import os
+import sys
 import json
 from pathlib import Path
 from typing import Dict
 from dataclasses import dataclass
 from tqdm import tqdm
+
+# Ensure project root on sys.path for 'common' imports when running as script
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import argparse
 from maze_gen.generator import MazeConfig, MazeGenerator
@@ -90,6 +94,7 @@ def main():
         adapter = get_adapter()
         prompt = build_prompt(maze_in)
         text = adapter.generate(prompt, image_path=str(img_path))
+        text = AntiCheat(seed=(rcfg.seed or 0)).sandbox_output(text)
         parser_o = OutputParser()
         parsed = parser_o.parse_with_fallback(text, adapter=None)
         val = Validator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
