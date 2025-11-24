@@ -314,8 +314,8 @@ open MazeBench-2D-Image/examples/report_10x10_0.html
 ## 快速开始（3行）
 ```
 pip install -r MazeBench-2D/requirements.txt
-python MazeBench-2D/cli.py --model gpt-4o --size 10x10 --workers 4
-open MazeBench-2D/examples/report_gpt-4o_10x10.html
+python MazeBench-2D/cli.py --model gpt-4o --size 11x11 --workers 4
+open MazeBench-2D/examples/report_gpt-4o_11x11.html
 ```
 
 ## 评测流水线
