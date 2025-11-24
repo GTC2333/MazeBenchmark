@@ -70,17 +70,16 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
     model = cfg.get('model', 'mock')
     size = (cfg.get('text2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
-    workers = int(cfg.get('text2d', {}).get('workers') or 4)
     adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
 
-    sizes = [size]
+    n = int(cfg.get('text2d', {}).get('n') or 1)
+    start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
+    algorithm = (cfg.get('text2d', {}).get('algorithm') or 'dfs')
+    base_seed = cfg.get('text2d', {}).get('seed') or 0
+
     results = []
-    # sequential for simplicity and deterministic logs
-    for s in tqdm(sizes, desc='Text2D'):
-        start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
-        algorithm = (cfg.get('text2d', {}).get('algorithm') or 'dfs')
-        seed = cfg.get('text2d', {}).get('seed')
-        cfg_m = TextMazeConfig(width=w, height=h, seed=seed, start_goal=start_goal, algorithm=algorithm)
+    for i in tqdm(range(n), desc='Text2D'):
+        cfg_m = TextMazeConfig(width=w, height=h, seed=base_seed + i, start_goal=start_goal, algorithm=algorithm)
         gen = TextMazeGenerator(cfg_m)
         maze = gen.generate()
         anti = TextAntiCheat(seed=maze.get('nonce', 0))
@@ -95,10 +94,9 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
         parsed = parser.parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
         validator = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['trap_zones'], maze['shortest_path'])
         result = validator.validate(parsed.path)
-        metrics = TextMetrics(size=max(h, w))
-        scores = metrics.score(result)
+        scores = TextMetrics(size=max(h, w)).score(result)
         failure_snapshot = '' if result.get('ok') else result.get('error', '')
-        rpath = outdir / f"text2d_report_{model}_{h}x{w}.html"
+        rpath = outdir / f"text2d_report_{model}_{h}x{w}_{i}.html"
         TextReport(str(rpath), maze, parsed.path, scores, failure_snapshot)
         results.append({'scores': scores, 'report': str(rpath)})
     summary_path = outdir / 'text2d_summary.json'
