@@ -77,7 +77,8 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
     results = []
     # sequential for simplicity and deterministic logs
     for s in tqdm(sizes, desc='Text2D'):
-        cfg_m = TextMazeConfig(width=w, height=h)
+        start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
+        cfg_m = TextMazeConfig(width=w, height=h, start_goal=start_goal)
         gen = TextMazeGenerator(cfg_m)
         maze = gen.generate()
         anti = TextAntiCheat(seed=maze.get('nonce', 0))
@@ -99,7 +100,8 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
         TextReport(str(rpath), maze, parsed.path, scores, failure_snapshot)
         results.append({'scores': scores, 'report': str(rpath)})
     summary_path = outdir / 'text2d_summary.json'
-    summary = {'avg_total': round(sum(r['scores']['total'] for r in results)/len(results), 2), 'items': results}
+    avg = round(sum(r['scores']['total'] for r in results)/len(results), 2) if results else 0
+    summary = {'avg_total': avg, 'items': results}
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     export_summary_pdf(str(outdir / 'text2d_summary.pdf'), 'Text2D Summary', summary, image_paths=None)
     return summary
@@ -115,7 +117,7 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     results = []
     img_paths = []
     for i in tqdm(range(n), desc='Image2D'):
-        gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24)))
+        gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner')))
         maze = gen.generate()
         img = gen.render_image(maze)
         img_path = outdir / f"image2d_maze_{h}x{w}_{i}.png"
@@ -135,7 +137,8 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
         rpath = outdir / f"image2d_report_{model}_{h}x{w}_{i}.html"
         ImgReport(str(rpath), maze, parsed.path, scores, fail, str(img_path))
         results.append({'scores': scores, 'report': str(rpath)})
-    summary = {'avg_total': round(sum(r['scores']['total'] for r in results)/len(results), 2), 'items': results}
+    avg = round(sum(r['scores']['total'] for r in results)/len(results), 2) if results else 0
+    summary = {'avg_total': avg, 'items': results}
     (outdir / 'image2d_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
     export_summary_pdf(str(outdir / 'image2d_summary.pdf'), 'Image2D Summary', summary, image_paths=img_paths)
     return summary
@@ -146,14 +149,15 @@ def generate_mazes_to_dir(cfg: Dict, outdir: Path, mode: str = 'text2d', count: 
     outdir.mkdir(parents=True, exist_ok=True)
     if mode == 'text2d':
         h, w = map(int, (cfg.get('text2d', {}).get('size') or '10x10').split('x'))
+        start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
         for i in tqdm(range(count), desc='GenOnly Text2D'):
-            gen = TextMazeGenerator(TextMazeConfig(width=w, height=h))
+            gen = TextMazeGenerator(TextMazeConfig(width=w, height=h, start_goal=start_goal))
             maze = gen.generate()
             (outdir / f'text2d_maze_{h}x{w}_{i}.json').write_text(json.dumps(maze, ensure_ascii=False), encoding='utf-8')
     elif mode == 'image2d':
         h, w = map(int, (cfg.get('image2d', {}).get('size') or '10x10').split('x'))
         for i in tqdm(range(count), desc='GenOnly Image2D'):
-            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24)))
+            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner')))
             maze = gen.generate()
             img = gen.render_image(maze)
             img.save(outdir / f'image2d_maze_{h}x{w}_{i}.png')
@@ -181,7 +185,8 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
             vres = v.validate(parsed.path)
             scores = TextMetrics(size=max(maze['height'], maze['width'])).score(vres)
             results.append({'maze': mp.name, 'scores': scores})
-        summary = {'avg_total': round(sum(r['scores']['total'] for r in results)/len(results), 2), 'items': results}
+        avg = round(sum(r['scores']['total'] for r in results)/len(results), 2) if results else 0
+        summary = {'avg_total': avg, 'items': results}
         (outdir / 'text2d_summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
         export_summary_pdf(str(outdir / 'text2d_summary.pdf'), 'Text2D Summary', summary)
         return summary

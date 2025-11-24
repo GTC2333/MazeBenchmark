@@ -4,7 +4,7 @@ This repository provides unified 2D maze benchmarks for LLMs with two modes:
 1) Text2D: text-only input/output
 2) Image2D: image input + text output (multimodal)
 
-Both modes share unified configuration, execution flow, and output structures.
+Both modes share a common generation core (structure-first; no legacy density), unified configuration (including start_goal placement), execution flow, and output structures.
 
 ## Running
 

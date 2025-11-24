@@ -10,12 +10,13 @@ class MazeConfig:
     height: int
     seed: Optional[int] = None
     cell_px: int = 24
+    start_goal: str = 'corner'  # 'corner' or 'random'
 
 class MazeGenerator:
     def __init__(self, cfg: MazeConfig):
         self.cfg = cfg
         self.rng = np.random.default_rng(cfg.seed)
-        self.core = CommonMazeGenerator(CommonMazeConfig(width=cfg.width, height=cfg.height, seed=cfg.seed))
+        self.core = CommonMazeGenerator(CommonMazeConfig(width=cfg.width, height=cfg.height, seed=cfg.seed, start_goal=self.cfg.start_goal))
 
     def generate(self) -> Dict:
         return self.core.generate()
@@ -40,7 +41,7 @@ class MazeGenerator:
         return img
 
 if __name__ == '__main__':
-    cfg = MazeConfig(width=10, height=10, trap_ratio=0.0, seed=42)
+    cfg = MazeConfig(width=10, height=10, seed=42, cell_px=24, start_goal='corner')
     gen = MazeGenerator(cfg)
     maze = gen.generate()
     img = gen.render_image(maze)

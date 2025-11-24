@@ -9,6 +9,7 @@ class CommonMazeConfig:
     width: int
     height: int
     seed: Optional[int] = None
+    start_goal: str = 'corner'  # 'corner' or 'random'
 
 class CommonMazeGenerator:
     def __init__(self, cfg: CommonMazeConfig):
@@ -158,8 +159,17 @@ class CommonMazeGenerator:
 
     def generate(self, start: Optional[Coord] = None, goal: Optional[Coord] = None) -> Dict:
         h, w = self.cfg.height, self.cfg.width
-        start = start or (0, 0)
-        goal = goal or (h-1, w-1)
+        if start is None or goal is None:
+            if self.cfg.start_goal == 'random':
+                start = (int(self.rng.integers(0, h)), int(self.rng.integers(0, w)))
+                # ensure goal different
+                while True:
+                    goal = (int(self.rng.integers(0, h)), int(self.rng.integers(0, w)))
+                    if goal != start:
+                        break
+            else:
+                start = (0, 0)
+                goal = (h-1, w-1)
         grid = np.ones((h, w), dtype=np.int8)
         main_path = self._carve_main_path(grid, start, goal)
         carved = self._carve_branches(grid, main_path)

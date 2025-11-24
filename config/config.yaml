@@ -6,11 +6,13 @@ model: mock
 text2d:
   size: '10x10'
   workers: 4
+  start_goal: corner  # corner or random
 image2d:
   size: '10x10'
   n: 3
   trap_ratio: 0.0
   cell_px: 24
+  start_goal: corner  # corner or random
 output_dir: outputs
 
 # Optional control flags
