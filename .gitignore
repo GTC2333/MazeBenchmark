@@ -13,3 +13,7 @@ config/local.yaml
 
 # Unified outputs
 outputs/
+
+# Ignore accidental large installers
+miniconda.sh
+
