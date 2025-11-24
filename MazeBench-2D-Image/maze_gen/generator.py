@@ -8,7 +8,6 @@ from common.maze_generator import CommonMazeConfig, CommonMazeGenerator
 class MazeConfig:
     width: int
     height: int
-    trap_ratio: float = 0.0  # parity with Text2D (unused in image rendering)
     seed: Optional[int] = None
     cell_px: int = 24
     start_goal: str = 'corner'  # 'corner' or 'random'
@@ -21,7 +20,7 @@ class MazeGenerator:
         self.core = CommonMazeGenerator(CommonMazeConfig(width=cfg.width, height=cfg.height, seed=cfg.seed, start_goal=self.cfg.start_goal, algo=self.cfg.algorithm))
 
     def generate(self) -> Dict:
-        # Core generation; trap_ratio is accepted for parity but unused here
+        # Core generation; traps feature fully removed; parity not applicable
         return self.core.generate()
 
     def render_image(self, maze: Dict) -> Image.Image:

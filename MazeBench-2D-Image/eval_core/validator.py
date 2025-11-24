@@ -35,4 +35,11 @@ class Validator:
         if path[-1] != self.goal:
             return {'ok': False, 'error': 'bad_goal'}
         optimal = int(len(path) == len(self.shortest))
-        return {'ok': True, 'optimal': optimal}
+        # overlap
+        sp = set(tuple(p) for p in self.shortest)
+        inter = sum(1 for p in path if tuple(p) in sp)
+        union = len(sp.union(set(tuple(p) for p in path)))
+        overlap = (inter/union) if union else 0.0
+        # simple robustness: check that small deviations still lead to a valid neighbor
+        robust = 1 if any((nr,nc) in sp for r,c in path[1:-1] for nr,nc in self._neighbors(r,c)) else 0
+        return {'ok': True, 'optimal': optimal, 'overlap': overlap, 'robust': robust}

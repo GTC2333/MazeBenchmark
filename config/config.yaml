@@ -17,7 +17,6 @@ image2d:
 
   size: '9x9'  # use odd×odd sizes for classic stride-2 wall mazes
   n: 5
-  trap_ratio: 0.0
   cell_px: 24  # pixel size per cell; final image equals maze grid (no outer border)
   start_goal: corner  # corner or random
 output_dir: outputs
@@ -45,6 +44,6 @@ ANTHROPIC_API_KEY: ''
 OPENAI_API_BASE: 'https://ark.cn-beijing.volces.com/api/v3'   # e.g., 'https://ark.cn-beijing.volces.com/api/v3'
 
 # Use a custom environment variable name to read the API key (instead of OPENAI_API_KEY), e.g., 'ARK_API_KEY'
-OPENAI_API_KEY_ENV: '6a9d3803-a391-4fb1-a526-14b9fcc0ae81'
+OPENAI_API_KEY_ENV: 'ARK_API_KEY'
 # Toggle using the OpenAI SDK (True/False). When False, HTTP fallback (requests) is used.
 USE_OPENAI_SDK: True

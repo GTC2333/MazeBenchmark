@@ -105,7 +105,7 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
         text = anti.sandbox_output(text)
         parser = TextParser()
         parsed = parser.parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
-        validator = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['trap_zones'], maze['shortest_path'])
+        validator = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
         result = validator.validate(parsed.path)
         scores = TextMetrics(size=max(h, w)).score(result)
         failure_snapshot = '' if result.get('ok') else result.get('error', '')
@@ -131,7 +131,7 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     img_paths = []
     base_seed = cfg.get('image2d', {}).get('seed') or 0
     for i in tqdm(range(n), desc='Image2D'):
-        gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=base_seed+i, trap_ratio=float(cfg.get('image2d', {}).get('trap_ratio') or 0.0), cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
+        gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=base_seed+i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
         maze = gen.generate()
         img = gen.render_image(maze)
         img_path = outdir / f"image2d_maze_{h}x{w}_{i}.png"
@@ -174,7 +174,7 @@ def generate_mazes_to_dir(cfg: Dict, outdir: Path, mode: str = 'text2d', count: 
         h, w = map(int, (cfg.get('image2d', {}).get('size') or '10x10').split('x'))
         base_seed = cfg.get('image2d', {}).get('seed') or 0
         for i in tqdm(range(count), desc='GenOnly Image2D'):
-            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=base_seed+i, trap_ratio=float(cfg.get('image2d', {}).get('trap_ratio') or 0.0), cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
+            gen = ImgMazeGenerator(ImgMazeConfig(width=w, height=h, seed=base_seed+i, cell_px=int(cfg.get('image2d', {}).get('cell_px') or 24), start_goal=(cfg.get('image2d', {}).get('start_goal') or 'corner'), algorithm=(cfg.get('image2d', {}).get('algorithm') or 'dfs')))
             maze = gen.generate()
             img = gen.render_image(maze)
             img.save(outdir / f'image2d_maze_{h}x{w}_{i}.png')
@@ -198,7 +198,7 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
             text = adapter.generate(prompt)
             text = anti.sandbox_output(text)
             parsed = TextParser().parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
-            v = TextValidator(maze['grid'], maze['start'], maze['goal'], maze.get('trap_zones', []), maze['shortest_path'])
+            v = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
             vres = v.validate(parsed.path)
             scores = TextMetrics(size=max(maze['height'], maze['width'])).score(vres)
             failure_snapshot = '' if vres.get('ok') else vres.get('error', '')

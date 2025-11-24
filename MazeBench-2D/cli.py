@@ -58,7 +58,7 @@ def run_single(size: str, model: str, outdir: Path, start_goal: str, algorithm: 
     text = anti.sandbox_output(text)
     parser = OutputParser()
     parsed = parser.parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
-    validator = Validator(maze['grid'], maze['start'], maze['goal'], maze['trap_zones'], maze['shortest_path'])
+    validator = Validator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
     result = validator.validate(parsed.path)
     metrics = Metrics(size=max(h, w))
     scores = metrics.score(result)

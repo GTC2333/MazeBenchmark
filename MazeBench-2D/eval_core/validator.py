@@ -4,11 +4,10 @@ import numpy as np
 Coord = Tuple[int, int]
 
 class Validator:
-    def __init__(self, grid: List[List[int]], start: Coord, goal: Coord, trap_zones: Dict[str, List[Coord]], shortest_path: List[Coord]):
+    def __init__(self, grid: List[List[int]], start: Coord, goal: Coord, shortest_path: List[Coord]):
         self.grid = np.array(grid, dtype=np.int8)
         self.start = tuple(start)
         self.goal = tuple(goal)
-        self.trap_zones = trap_zones
         self.shortest_path = [tuple(p) for p in shortest_path]
 
     def validate(self, path: List[Coord]) -> Dict[str, Any]:
@@ -16,17 +15,13 @@ class Validator:
         err = self._check_validity(path)
         if err:
             return {'ok': False, 'error': f'validity_failure: {err}'}
-        # Layer 2: trap detection
-        trap_err = self._check_traps(path)
-        if trap_err:
-            return {'ok': False, 'error': f'trap_failure: {trap_err}'}
-        # Layer 3: optimality
+        # Layer 2: optimality
         optimal = len(path) == len(self.shortest_path)
-        if not optimal:
-            return {'ok': True, 'warning': 'suboptimal_path', 'optimal': False}
+        # Layer 3: overlap between model path and shortest_path
+        overlap = self._overlap(path)
         # Layer 4: robustness (minor perturbations should still succeed)
         robust = self._robustness(path)
-        return {'ok': True, 'optimal': optimal, 'robust': robust}
+        return {'ok': True, 'optimal': optimal, 'overlap': overlap, 'robust': robust}
 
     def _check_validity(self, path: List[Coord]) -> str:
         if not path:
@@ -43,22 +38,15 @@ class Validator:
                 return 'illegal_move'
             if self.grid[r1, c1] == 1:
                 return 'wall_collision'
-        return ''
+    def _overlap(self, path: List[Coord]) -> float:
+        if not self.shortest_path:
+            return 0.0
+        sp = set(self.shortest_path)
+        inter = sum(1 for p in path if tuple(p) in sp)
+        union = len(sp.union(set(tuple(p) for p in path)))
+        return inter/union if union else 0.0
 
-    def _check_traps(self, path: List[Coord]) -> str:
-        dz = set(tuple(p) for p in self.trap_zones.get('dead_ends', []))
-        bn = set(tuple(p) for p in self.trap_zones.get('bottlenecks', []))
-        dy = set(tuple(p) for p in self.trap_zones.get('dynamic_obstacles', []))
-        for p in path:
-            tp = tuple(p)
-            if tp in dz:
-                return 'dead_end'
-            if tp in bn:
-                return 'bottleneck_stall'
-            # Dynamic: simple model that entering dynamic counts as failure
-            if tp in dy:
-                return 'dynamic_collision'
-        return ''
+    # traps removed end-to-end
 
     def _robustness(self, path: List[Coord]) -> bool:
         # Tiny jitter on intermediate steps: remove or duplicate steps and see if still legal to goal via local correction

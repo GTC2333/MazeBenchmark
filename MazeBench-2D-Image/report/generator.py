@@ -21,6 +21,7 @@ def generate_report(output_path: str, maze: Dict, model_path: List[Tuple[int,int
         'TOTAL': str(scores['total']),
         'S': str(scores['S']),
         'Q': str(scores['Q']),
+        'O': str(scores.get('O', 0)),
         'R': str(scores['R']),
         'A': str(scores['A']),
         'SP': json.dumps(maze['shortest_path']),

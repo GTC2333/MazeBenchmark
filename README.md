@@ -63,7 +63,7 @@ text2d:
   size: '11x11'         # 推荐奇数×奇数（11–41）
   algorithm: dfs        # dfs / prim
   seed: 123
-  trap_ratio: 0.1       # 陷阱比例（0.0–0.2），过高路径风险增大
+  # 坑（traps）特性已移除；生成器和评测不再包含陷阱或 trap_zones 字段
 
 image2d:
   size: '11x11'
