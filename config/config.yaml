@@ -34,3 +34,12 @@ count: 3
 # API keys (use local.yaml for real values)
 OPENAI_API_KEY: ''
 ANTHROPIC_API_KEY: ''
+
+
+# Optional OpenAI SDK-style vendor settings
+# Set a custom base URL to point the OpenAI SDK/HTTP client to other vendors that emulate the OpenAI API (e.g., Volcengine Ark)
+OPENAI_API_BASE: ''   # e.g., 'https://ark.cn-beijing.volces.com/api/v3'
+# Use a custom environment variable name to read the API key (instead of OPENAI_API_KEY), e.g., 'ARK_API_KEY'
+OPENAI_API_KEY_ENV: ''
+# Toggle using the OpenAI SDK (True/False). When False, HTTP fallback (requests) is used.
+USE_OPENAI_SDK: false

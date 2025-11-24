@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict
 from tqdm import tqdm
+import os
 
 from common.config_loader import load_config, apply_env_keys
 from common.pdf_export import export_summary_pdf
@@ -60,17 +61,22 @@ ImgMockAdapter = _img_mock.MockAdapter
 ImgAntiCheat = _img_anticheat.AntiCheat
 
 
-def get_adapter(model: str, openai_key: str | None, image: bool = False) -> object:
+def get_adapter(model: str, openai_key: str | None, image: bool = False, openai_base: str | None = None, openai_key_env: str | None = None, use_sdk: bool | None = None) -> object:
     if model.startswith('mock') or not openai_key:
         return ImgMockAdapter(model=model) if image else TextMockAdapter(model=model)
-    return ImgOpenAIAdapter(model=model) if image else TextOpenAIAdapter(model=model)
+    # Allow custom base URL, env var name for key, and SDK toggle
+    base = openai_base or os.getenv('OPENAI_API_BASE') or 'https://api.openai.com/v1'
+    key_env = openai_key_env or None
+    sdk = use_sdk if use_sdk is not None else (os.getenv('USE_OPENAI_SDK') == '1')
+    return (ImgOpenAIAdapter(model=model, api_base=base, api_key=openai_key, api_key_env=key_env, use_sdk=sdk)
+            if image else TextOpenAIAdapter(model=model, api_base=base, api_key=openai_key, api_key_env=key_env, use_sdk=sdk))
 
 
 def run_text2d(cfg: Dict, outdir: Path) -> Dict:
     model = cfg.get('model', 'mock')
     size = (cfg.get('text2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
-    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
+    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
 
     n = int(cfg.get('text2d', {}).get('n') or 1)
     start_goal = (cfg.get('text2d', {}).get('start_goal') or 'corner')
@@ -112,7 +118,7 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     size = (cfg.get('image2d', {}).get('size') or '10x10')
     h, w = map(int, size.split('x'))
     n = int(cfg.get('image2d', {}).get('n') or 3)
-    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True)
+    adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
 
     results = []
     img_paths = []
@@ -172,7 +178,7 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
     outdir.mkdir(parents=True, exist_ok=True)
     model = cfg.get('model', 'mock')
     if mode == 'text2d':
-        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False)
+        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=False, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
         results = []
         for mp in sorted(mazes_dir.glob('text2d_maze_*.json')):
             maze = json.loads(mp.read_text(encoding='utf-8'))
@@ -195,7 +201,7 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
         export_summary_pdf(str(outdir / 'text2d_summary.pdf'), 'Text2D Summary', summary)
         return summary
     else:
-        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True)
+        adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
         results = []
         img_paths = []
         for jp in sorted(mazes_dir.glob('image2d_maze_*.json')):

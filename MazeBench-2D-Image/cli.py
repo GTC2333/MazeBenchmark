@@ -33,8 +33,12 @@ def build_prompt(maze: Dict) -> str:
 
 
 def get_adapter() -> ModelAdapter:
-    if os.getenv('OPENAI_API_KEY'):
-        return OpenAIAdapter()
+    key_env = os.getenv('OPENAI_API_KEY_ENV')
+    has_key = bool(os.getenv('OPENAI_API_KEY')) or (bool(key_env) and bool(os.getenv(key_env)))
+    if has_key:
+        api_base = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
+        use_sdk = (os.getenv('USE_OPENAI_SDK','').lower() in ('1','true','yes'))
+        return OpenAIAdapter(api_base=api_base, api_key=os.getenv('OPENAI_API_KEY'), api_key_env=key_env, use_sdk=use_sdk)
     return MockAdapter()
 
 

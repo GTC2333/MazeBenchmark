@@ -30,9 +30,12 @@ def get_adapter(model_name: str):
         return MockAdapter(model=model_name)
     if model_name.startswith('gpt') or model_name.startswith('openai'):
         import os
-        if not os.environ.get('OPENAI_API_KEY'):
+        if not os.environ.get('OPENAI_API_KEY') and not os.environ.get(os.getenv('OPENAI_API_KEY_ENV','')):
             return MockAdapter(model='mock-'+model_name)
-        return OpenAIAdapter(model=model_name)
+        api_base = os.environ.get('OPENAI_API_BASE', 'https://api.openai.com/v1')
+        key_env = os.environ.get('OPENAI_API_KEY_ENV') or None
+        use_sdk = (os.environ.get('USE_OPENAI_SDK','').lower() in ('1','true','yes'))
+        return OpenAIAdapter(model=model_name, api_base=api_base, api_key=os.environ.get('OPENAI_API_KEY'), api_key_env=key_env, use_sdk=use_sdk)
     if model_name.startswith('claude') or model_name.startswith('anthropic'):
         import os
         if not os.environ.get('ANTHROPIC_API_KEY'):
@@ -49,6 +52,7 @@ def run_single(size: str, model: str, outdir: Path, start_goal: str, algorithm: 
     anti = AntiCheat(seed=maze.get('nonce', 0))
     maze_p = anti.perturb_input(maze)
     prompt = build_prompt(maze_p)
+    # Allow custom base URL/env var; pass through via environment
     adapter = get_adapter(model)
     text = adapter.generate(prompt)
     text = anti.sandbox_output(text)

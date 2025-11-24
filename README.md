@@ -221,3 +221,35 @@ mode: text2d
 ---
 
 让我们携手推进空间推理评测——一次迷宫，一次进步 🧩
+
+### 使用 OpenAI SDK 风格调用其他厂商（自定义 base_url + API Key 环境变量）
+
+很多厂商（如火山引擎 Ark）兼容 OpenAI SDK/HTTP 接口。MazeBench 允许通过配置切换至这些厂商：
+
+1) 在 `config/config.yaml`（或 `config/local.yaml`）中设置：
+```yaml
+OPENAI_API_BASE: 'https://ark.cn-beijing.volces.com/api/v3'  # 兼容 OpenAI 的基础 URL
+OPENAI_API_KEY_ENV: 'ARK_API_KEY'                            # API Key 所在的环境变量名
+USE_OPENAI_SDK: true                                         # 优先使用 OpenAI SDK；失败则自动回退 HTTP
+```
+
+2) 将厂商提供的 Key 写入环境变量：
+```bash
+export ARK_API_KEY="your_vendor_key_here"
+```
+
+3) 运行（bench 或独立 CLI 都支持）：
+```bash
+# 统一入口（bench）
+python bench.py --model openai-gpt-4o
+
+# 文本模式 CLI
+python MazeBench-2D/cli.py --model openai-gpt-4o --size 21x21 --algorithm prim
+
+# 图像模式 CLI
+python MazeBench-2D-Image/cli.py --size 21x21 --algorithm dfs
+```
+
+说明：
+- 如果未安装 `openai` 包或 SDK 调用失败，会自动回退到 HTTP `requests` 调用。
+- 也可以通过环境变量直接设置：`OPENAI_API_BASE`、`OPENAI_API_KEY_ENV`、`USE_OPENAI_SDK=1`。
