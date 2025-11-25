@@ -20,6 +20,7 @@ class CommonMazeGenerator:
         self._algo_map = {
             'dfs': lambda grid, start, goal: self._apply_dfs(grid, start, goal),
             'prim': lambda grid, start, goal: self._apply_prim(grid, start, goal),
+            'prim_loops': lambda grid, start, goal: self._apply_prim_loops(grid, start, goal),
         }
 
     def register_algo(self, name: str, handler):
@@ -132,6 +133,34 @@ class CommonMazeGenerator:
                     xr, xc = cell[0]+dr2, cell[1]+dc2
                     if self._in_bounds(xr, xc, grid) and (xr, xc) not in carved and (xr, xc) not in frontier:
                         frontier.add((xr, xc))
+    def _apply_prim_loops(self, grid: np.ndarray, start: Coord, goal: Coord) -> None:
+        # Start with tree-like Prim, then randomly add extra connections to create loops
+        grid.fill(1)
+        self._carve_prim_tree(grid, start)
+        # Loop infusion: sample wall cells that separate two corridors and open them
+        h, w = grid.shape
+        candidates: List[Coord] = []
+        # Horizontal walls between passages
+        for r in range(1, h, 2):
+            for c in range(0, w-1, 2):
+                if grid[r, c] == 0 and grid[r, c+1] == 1 and c+2 < w and grid[r, c+2] == 0:
+                    candidates.append((r, c+1))
+        # Vertical walls between passages
+        for r in range(0, h-1, 2):
+            for c in range(1, w, 2):
+                if grid[r, c] == 0 and grid[r+1, c] == 1 and r+2 < h and grid[r+2, c] == 0:
+                    candidates.append((r+1, c))
+        if candidates:
+            # Open ~10%–20% of candidate walls to create loops (controlled by size)
+            rate = 0.15
+            k = max(1, int(len(candidates) * rate))
+            idxs = self.rng.choice(len(candidates), size=k, replace=False)
+            for i in idxs:
+                wr, wc = candidates[int(i)]
+                grid[wr, wc] = 0
+        grid[start] = 0
+        grid[goal] = 0
+
 
     def _apply_prim(self, grid: np.ndarray, start: Coord, goal: Coord) -> None:
         grid.fill(1)
@@ -152,7 +181,7 @@ class CommonMazeGenerator:
                 start = (0, 0)
                 goal = (h-1, w-1)
         # Snap to even coordinates for stride-2 carving to ensure connectivity
-        if self.cfg.algo in ('dfs','prim'):
+        if self.cfg.algo in ('dfs','prim','prim_loops'):
             start = (start[0] - start[0] % 2, start[1] - start[1] % 2)
             goal = (goal[0] - goal[0] % 2, goal[1] - goal[1] % 2)
         grid = np.ones((h, w), dtype=np.int8)

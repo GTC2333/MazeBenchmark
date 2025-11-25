@@ -1,19 +1,17 @@
 # Unified configuration for MazeBenchmark
 # Fill in keys in local.yaml (ignored by git) to avoid committing secrets.
-
-
 # Optionally override per benchmark below
 text2d:
   size: '5x5'  # use odd×odd sizes for classic stride-2 wall mazes
   algorithm: dfs  # dfs or prim
-  seed: 2  # base random seed for reproducibility
+  seed: 222  # base random seed for reproducibility
   n: 5  # number of text mazes to run/generate
 
   workers: 4
   start_goal: corner  # corner or random
 image2d:
   algorithm: dfs  # dfs or prim
-  seed: 2  # base random seed for reproducibility
+  seed: 222  # base random seed for reproducibility
 
   size: '5x5'  # use odd×odd sizes for classic stride-2 wall mazes
   n: 5

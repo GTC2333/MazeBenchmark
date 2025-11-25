@@ -1,7 +1,7 @@
 
 ---
 
-# 🧭 MazeBench — 统一的二维迷宫基准，评测大模型空间推理能力
+# MazeBench
 
 > 一个可复现、多模态的开源基准测试，用于系统评估大语言模型（LLM）在**二维迷宫导航任务**中的空间推理与路径规划能力。  
 > 支持**纯文本网格**与**图像输入**两种模式，端到端自动化，开箱即用。
@@ -27,7 +27,7 @@
 
 ---
 
-## 🧪 两种评测模式
+## 模式
 
 | 模式 | 输入 | 输出 | 适用场景 |
 |------|------|------|----------|
@@ -38,7 +38,7 @@
 
 ---
 
-## ⚡ 快速开始（3 行命令）
+## 快速开始
 
 ```bash
 # 1. 安装依赖（推荐 Python ≥3.10）
@@ -57,20 +57,22 @@ open outputs/report_*.html
 
 ## 🛠️ 配置与运行逻辑
 
-### 🔧 主配置：`config/config.yaml`
+### 配置：`config/config.yaml`
 ```yaml
 text2d:
   size: '11x11'         # 推荐奇数×奇数（11–41）
-  algorithm: dfs        # dfs / prim
+  algorithm: dfs        # dfs / prim / prim_loops
   seed: 123
   # 坑（traps）特性已移除；生成器和评测不再包含陷阱或 trap_zones 字段
 
 image2d:
   size: '11x11'
   n: 5                  # 批量生成数量
-  algorithm: prim
+  algorithm: prim       # dfs / prim / prim_loops
   seed: 123
   cell_px: 20           # 每格像素数（值越大图像越清晰）
+
+  start_goal: random       # corner / random（随机起终点）
 
 model: mock             # mock / gpt-4o / claude-3-5-sonnet
 output_dir: outputs/
@@ -106,11 +108,13 @@ outputs/
 - 🛣️ **主路径生成**：带局部转向偏置的随机游走（避免长直道/对角主导）  
 - 🌳 **分支控制**：沿主路径采样，生成短分支+死胡同  
 - 🧱 **墙体分散**：打破大块连续墙体，限制全局墙占比  
-- 🕳️ **陷阱机制**：可配置陷阱区（鼓励模型规避高风险路径）
+- 🕳️ 陷阱机制：历史版本存在；当前版本已移除该特性以简化评测（评测与生成均不再包含 traps 字段）
 
 **内置算法**（支持插件式扩展）：
 - `dfs`：步长为 2 的深度优先“挖墙法”，分支丰富，死胡同明显  
-- `prim`：步长为 2 的随机 Prim 生长法，通道均匀，环路少  
+- `prim`：步长为 2 的随机 Prim 生长法，通道均匀
+- `prim_loops`：先用 Prim 生成树，再在候选墙上按比例开口（约 15%），形成环路，提升探索难度
+
 
 ▶️ 新增算法仅需 **10 行以内**：实现 `carve` 逻辑 → `register_algo()` 注册即可全局生效。
 

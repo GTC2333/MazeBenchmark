@@ -52,21 +52,14 @@ TextMetrics = _txt_metrics.Metrics
 TextReport = _txt_report.generate_report
 TextAntiCheat = _txt_anticheat.AntiCheat
 
-# Load Image2D modules via alias package
-_img_gen = import_module('MazeBench_2D_Image.maze_gen.generator')
-_img_parser = import_module('MazeBench_2D_Image.eval_core.parser')
-_img_validator = import_module('MazeBench_2D_Image.eval_core.validator')
-_img_metrics = import_module('MazeBench_2D_Image.eval_core.metrics')
-_img_report = import_module('MazeBench_2D_Image.report.generator')
-_img_anticheat = import_module('MazeBench_2D_Image.config.anti_cheat_rules')
-
-ImgMazeConfig = _img_gen.MazeConfig
-ImgMazeGenerator = _img_gen.MazeGenerator
-ImgParser = _img_parser.OutputParser
-ImgValidator = _img_validator.Validator
-ImgMetrics = _img_metrics.Metrics
-ImgReport = _img_report.generate_report
-ImgAntiCheat = _img_anticheat.AntiCheat
+# Lazy-load Image2D modules only when needed to avoid hard dependency on Pillow
+ImgMazeConfig = None
+ImgMazeGenerator = None
+ImgParser = None
+ImgValidator = None
+ImgMetrics = None
+ImgReport = None
+ImgAntiCheat = None
 
 
 def get_adapter(model: str, openai_key: str | None, image: bool = False, openai_base: str | None = None, openai_key_env: str | None = None, use_sdk: bool | None = None) -> object:
@@ -151,6 +144,24 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
     h, w = map(int, size.split('x'))
     n = int(cfg.get('image2d', {}).get('n') or 3)
     adapter = get_adapter(model, cfg.get('OPENAI_API_KEY'), image=True, openai_base=cfg.get('OPENAI_API_BASE'), openai_key_env=cfg.get('OPENAI_API_KEY_ENV'), use_sdk=cfg.get('USE_OPENAI_SDK'))
+    # Lazy import image modules on first use
+    global ImgMazeConfig, ImgMazeGenerator, ImgParser, ImgValidator, ImgMetrics, ImgReport, ImgAntiCheat
+    if ImgMazeGenerator is None:
+        _img_gen = import_module('MazeBench_2D_Image.maze_gen.generator')
+        _img_parser = import_module('MazeBench_2D_Image.eval_core.parser')
+        _img_validator = import_module('MazeBench_2D_Image.eval_core.validator')
+        _img_metrics = import_module('MazeBench_2D_Image.eval_core.metrics')
+        _img_report = import_module('MazeBench_2D_Image.report.generator')
+        _img_anticheat = import_module('MazeBench_2D_Image.config.anti_cheat_rules')
+        ImgMazeConfig = _img_gen.MazeConfig
+        ImgMazeGenerator = _img_gen.MazeGenerator
+        ImgParser = _img_parser.OutputParser
+        ImgValidator = _img_validator.Validator
+        ImgMetrics = _img_metrics.Metrics
+        ImgReport = _img_report.generate_report
+        ImgAntiCheat = _img_anticheat.AntiCheat
+
+
     workers = int(cfg.get('image2d', {}).get('workers') or max(1, min(n, (os.cpu_count() or 4))))
 
     img_paths = []
