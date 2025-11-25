@@ -13,14 +13,27 @@ def load_config() -> Dict:
     if local.exists():
         loc = yaml.safe_load(local.read_text(encoding='utf-8')) or {}
         cfg.update(loc)
-    for k in ['OPENAI_API_KEY','ANTHROPIC_API_KEY','model','output_dir','OPENAI_API_BASE','OPENAI_API_KEY_ENV','USE_OPENAI_SDK']:
-        if os.getenv(k):
+    # Pull overrides from environment
+    env_keys = [
+        'OPENAI_API_KEY','ANTHROPIC_API_KEY','model','output_dir','OPENAI_API_BASE','OPENAI_API_KEY_ENV','USE_OPENAI_SDK',
+        # Azure OpenAI
+        'AZURE_OPENAI_API_KEY','AZURE_OPENAI_ENDPOINT','AZURE_OPENAI_DEPLOYMENT','AZURE_OPENAI_API_VERSION',
+        # Provider selector
+        'PROVIDER',
+    ]
+    for k in env_keys:
+        if os.getenv(k) is not None:
             cfg[k] = os.getenv(k)
     return cfg
 
 
 def apply_env_keys(cfg: Dict):
-    for k in ['OPENAI_API_KEY','ANTHROPIC_API_KEY','OPENAI_API_BASE','OPENAI_API_KEY_ENV','USE_OPENAI_SDK']:
+    keys = [
+        'OPENAI_API_KEY','ANTHROPIC_API_KEY','OPENAI_API_BASE','OPENAI_API_KEY_ENV','USE_OPENAI_SDK',
+        'AZURE_OPENAI_API_KEY','AZURE_OPENAI_ENDPOINT','AZURE_OPENAI_DEPLOYMENT','AZURE_OPENAI_API_VERSION',
+        'PROVIDER',
+    ]
+    for k in keys:
         v = cfg.get(k)
         if v is not None:
             os.environ[k] = str(v)

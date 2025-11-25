@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from common.config_loader import load_config, apply_env_keys
 from common.pdf_export import export_summary_pdf
+from common.model_gateway import make_adapter_from_cfg
 
 # Map hyphenated directories to importable alias packages, then import submodules normally
 import sys, types
@@ -41,8 +42,6 @@ _txt_parser = import_module('MazeBench_2D.eval_core.parser')
 _txt_validator = import_module('MazeBench_2D.eval_core.validator')
 _txt_metrics = import_module('MazeBench_2D.eval_core.metrics')
 _txt_report = import_module('MazeBench_2D.report.generator')
-_txt_openai = import_module('MazeBench_2D.model_gateways.openai')
-_txt_mock = import_module('MazeBench_2D.model_gateways.mock')
 _txt_anticheat = import_module('MazeBench_2D.config.anti_cheat_rules')
 
 TextMazeConfig = _txt_gen.MazeConfig
@@ -51,8 +50,6 @@ TextParser = _txt_parser.OutputParser
 TextValidator = _txt_validator.Validator
 TextMetrics = _txt_metrics.Metrics
 TextReport = _txt_report.generate_report
-TextOpenAIAdapter = _txt_openai.OpenAIAdapter
-TextMockAdapter = _txt_mock.MockAdapter
 TextAntiCheat = _txt_anticheat.AntiCheat
 
 # Load Image2D modules via alias package
@@ -61,8 +58,6 @@ _img_parser = import_module('MazeBench_2D_Image.eval_core.parser')
 _img_validator = import_module('MazeBench_2D_Image.eval_core.validator')
 _img_metrics = import_module('MazeBench_2D_Image.eval_core.metrics')
 _img_report = import_module('MazeBench_2D_Image.report.generator')
-_img_openai = import_module('MazeBench_2D_Image.model_gateways.openai')
-_img_mock = import_module('MazeBench_2D_Image.model_gateways.mock')
 _img_anticheat = import_module('MazeBench_2D_Image.config.anti_cheat_rules')
 
 ImgMazeConfig = _img_gen.MazeConfig
@@ -71,23 +66,25 @@ ImgParser = _img_parser.OutputParser
 ImgValidator = _img_validator.Validator
 ImgMetrics = _img_metrics.Metrics
 ImgReport = _img_report.generate_report
-ImgOpenAIAdapter = _img_openai.OpenAIAdapter
-ImgMockAdapter = _img_mock.MockAdapter
 ImgAntiCheat = _img_anticheat.AntiCheat
 
 
 def get_adapter(model: str, openai_key: str | None, image: bool = False, openai_base: str | None = None, openai_key_env: str | None = None, use_sdk: bool | None = None) -> object:
-    if model.startswith('mock'):
-        return ImgMockAdapter(model=model) if image else TextMockAdapter(model=model)
-    # Resolve API key: explicit > custom env var > default OPENAI_API_KEY
-    env_key = os.getenv(openai_key_env) if openai_key_env else os.getenv('OPENAI_API_KEY')
-    resolved_key = openai_key or env_key or ''
-    if not resolved_key:
-        return ImgMockAdapter(model=model) if image else TextMockAdapter(model='mock-'+model)
-    base = openai_base or os.getenv('OPENAI_API_BASE') or 'https://api.openai.com/v1'
-    sdk = use_sdk if use_sdk is not None else (os.getenv('USE_OPENAI_SDK') in ('1','true','True'))
-    return (ImgOpenAIAdapter(model=model, api_base=base, api_key=resolved_key, api_key_env=openai_key_env, use_sdk=sdk)
-            if image else TextOpenAIAdapter(model=model, api_base=base, api_key=resolved_key, api_key_env=openai_key_env, use_sdk=sdk))
+    # Delegate to unified common adapter builder; cfg is composed from env-prepared values
+    cfg = {
+        'model': model,
+        'OPENAI_API_KEY': openai_key,
+        'OPENAI_API_BASE': openai_base,
+        'OPENAI_API_KEY_ENV': openai_key_env,
+        'USE_OPENAI_SDK': use_sdk,
+        # Allow azure through env/config if present
+        'AZURE_OPENAI_API_KEY': os.getenv('AZURE_OPENAI_API_KEY'),
+        'AZURE_OPENAI_ENDPOINT': os.getenv('AZURE_OPENAI_ENDPOINT'),
+        'AZURE_OPENAI_DEPLOYMENT': os.getenv('AZURE_OPENAI_DEPLOYMENT'),
+        'AZURE_OPENAI_API_VERSION': os.getenv('AZURE_OPENAI_API_VERSION'),
+        'PROVIDER': os.getenv('PROVIDER')
+    }
+    return make_adapter_from_cfg(cfg, image=image)
 
 
 def run_text2d(cfg: Dict, outdir: Path) -> Dict:
@@ -109,12 +106,16 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
         anti = TextAntiCheat(seed=maze.get('nonce', 0))
         maze_p = anti.perturb_input(maze)
         prompt = (
-            f"迷宫大小 {len(maze_p['grid'])}x{len(maze_p['grid'][0])}。原点在左上角，x 为列索引，y 为行索引。起点{maze_p['start']}，终点{maze_p['goal']}。"
-            f"请只输出坐标路径列表，如 [(r0,c0),(r1,c1),...]，不要解释。"
-        )
+            f"迷宫大小 {len(maze_p['grid'])}x{len(maze_p['grid'][0])}。迷宫为{maze_p['grid']}。0表示通路可以移动；1表示墙壁，不可穿过。原点在左上角，x 为列索引，y 为行索引。起点{maze_p['start']}，终点{maze_p['goal']}。"
+            f"请只输出坐标路径列表，如 [(y0,x0),(y1,x1),...]，不要解释。"
+        )   
+        # print(prompt)
+
+
         text = adapter.generate(prompt)
         text = anti.sandbox_output(text)
         parser = TextParser()
+
         parsed = parser.parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
         validator = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
         result = validator.validate(parsed.path)
@@ -162,7 +163,7 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
         img.save(img_path)
         anti = ImgAntiCheat(seed=maze.get('nonce', 0))
         maze_p = anti.perturb_input(maze)
-        prompt = f"请根据图片中的迷宫，从绿色起点到红色终点输出坐标路径列表。迷宫尺寸为 {h}x{w}。原点在左上角，x 为列索引，y 为行索引。只输出[(r,c),...]，不要解释。"
+        prompt = f"请根据图片中的迷宫，从绿色起点到红色终点输出坐标路径列表,白色单元格为路径，可以在上面移动；黑色单元格为墙壁，禁止穿越墙壁。迷宫尺寸为 {h}x{w}。原点(0,0)在左上角.x 为列索引，y 为行索引。只输出[(y1,x1),(y2,x2),...]，不要解释。"
         text = adapter.generate(prompt, image_path=str(img_path))
         text = anti.sandbox_output(text)
         parser = ImgParser()
@@ -233,8 +234,8 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
             anti = TextAntiCheat(seed=maze.get('nonce', 0))
             maze_p = anti.perturb_input(maze)
             prompt = (
-                f"迷宫大小 {len(maze_p['grid'])}x{len(maze_p['grid'][0])}。原点在左上角，x 为列索引，y 为行索引。起点{maze_p['start']}，终点{maze_p['goal']}。"
-                f"请只输出坐标路径列表，如 [(r0,c0),(r1,c1),...]，不要解释。"
+               f"迷宫大小 {len(maze_p['grid'])}x{len(maze_p['grid'][0])}。迷宫为{maze_p['grid']}。0表示通路可以移动；1表示墙壁，不可穿过。原点在左上角，x 为列索引，y 为行索引。起点{maze_p['start']}，终点{maze_p['goal']}。"
+            f"请只输出坐标路径列表，如 [(y0,x0),(y1,x1),...]，不要解释。"
             )
             text = adapter.generate(prompt)
             text = anti.sandbox_output(text)
@@ -275,7 +276,7 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
             png = mazes_dir / (base + '.png')
             anti = ImgAntiCheat(seed=maze.get('nonce', 0))
             maze_p = anti.perturb_input(maze)
-            prompt = f"请根据图片中的迷宫，从绿色起点到红色终点输出坐标路径列表。迷宫尺寸为 {maze['height']}x{maze['width']}。原点在左上角，x 为列索引，y 为行索引。只输出[(r,c),...]，不要解释。"
+            prompt = f"请根据图片中的迷宫，从绿色起点到红色终点输出坐标路径列表,白色单元格为路径，可以在上面移动；黑色单元格为墙壁，禁止穿越。迷宫尺寸为 {maze['height']}x{maze['width']}。原点在左上角，x 为列索引，y 为行索引。只输出[(y1,x1),(y2,x2),...]，不要解释。"
             text = adapter.generate(prompt, image_path=str(png))
             text = anti.sandbox_output(text)
             parsed = ImgParser().parse_with_fallback(text, adapter=None)
