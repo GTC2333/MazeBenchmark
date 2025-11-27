@@ -26,21 +26,22 @@ output_dir: outputs
 # Set mode: text2d/image2d/all to scope actions
 # count: number of mazes to generate in generate_only or pre-generated auto-generate mode
 mode: all
-generate_only: false
+generate_only: true
 use_pregenerated: False
-pre_generated_dir: ''
+pre_generated_dir: 'pre_gen_maze'
 count: 3
+
 # Chose which Model to use
-model: doubao-seed-1-6-251015
+# model: doubao-seed-1-6-251015
 # API keys: do NOT put secrets here. Use config/local.yaml or environment variables.
 # OPENAI_API_KEY and ANTHROPIC_API_KEY must be set in config/local.yaml (gitignored) or via env.
 
-
 # Optional OpenAI SDK-style vendor settings
 # Set a custom base URL to point the OpenAI SDK/HTTP client to other vendors that emulate the OpenAI API (e.g., Volcengine Ark)
-OPENAI_API_BASE: 'https://ark.cn-beijing.volces.com/api/v3'   # e.g., 'https://ark.cn-beijing.volces.com/api/v3'
+# OPENAI_API_BASE: 'https://ark.cn-beijing.volces.com/api/v3'   # e.g., 'https://ark.cn-beijing.volces.com/api/v3'
+
 
 # Use a custom environment variable name to read the API key (instead of OPENAI_API_KEY), e.g., 'ARK_API_KEY'
-OPENAI_API_KEY_ENV: 'ARK_API_KEY'
+# OPENAI_API_KEY: 'ARK_API_KEY'
 # Toggle using the OpenAI SDK (True/False). When False, HTTP fallback (requests) is used.
 USE_OPENAI_SDK: True

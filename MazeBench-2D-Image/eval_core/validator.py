@@ -21,6 +21,9 @@ class Validator:
         for i in range(1, len(path)):
             r0,c0 = path[i-1]
             r1,c1 = path[i]
+            if c1 < 0 or c1 >=len(self.grid) or r1 < 0 or r1 >=len(self.grid):
+                return {'ok': False, 'error': 'out of maze', 'overlap': overlap}
+            print(self.grid)
             if abs(r0-r1) + abs(c0-c1) != 1:
                 return {'ok': False, 'error': 'non_step', 'overlap': overlap}
             if self.grid[r1][c1] == 1:

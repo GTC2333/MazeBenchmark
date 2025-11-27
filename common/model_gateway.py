@@ -2,8 +2,8 @@ import os
 import base64
 import requests
 from typing import Optional, Dict, Any
-
-
+import re
+import traceback
 class MockAdapter:
     def __init__(self, model: str = 'mock'):
         self._model = model
@@ -12,7 +12,7 @@ class MockAdapter:
         return f'mock:{self._model}'
 
     def generate(self, prompt: str, image_path: Optional[str] = None) -> str:
-        import re
+        print('Using MockAdapter to Generate')
         m = re.search(r"(\d+)x(\d+)", prompt)
         h, w = (10, 10)
         if m:
@@ -82,11 +82,12 @@ class ChatAdapter:
 
     def generate(self, prompt: str, image_path: Optional[str] = None) -> str:
         messages = self._build_messages(prompt, image_path)
-
+        
         if self.provider == 'mock':
             print('Using MockAdapter')
             return MockAdapter().generate(prompt, image_path)
         if self.provider == 'openai':
+            
             # Try SDK first if requested
             if self.use_sdk:
                 try:
@@ -101,11 +102,13 @@ class ChatAdapter:
             # HTTP fallback
             url = f"{self.api_base}/chat/completions"
             headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+
+            print(url,headers)
             data = {"model": self.model, "messages": messages, "temperature": 0.0}
             resp = requests.post(url, headers=headers, json=data, timeout=300)
             resp.raise_for_status()
             j = resp.json()
-            print(j['choices'][0]['message']['content'])
+            print('OpenAI Adapter Generated:',j['choices'][0]['message']['content'])
             return j['choices'][0]['message']['content']
         elif self.provider == 'azure':
             # Azure OpenAI uses deployment in path and api-version query; header is api-key
@@ -122,12 +125,13 @@ class ChatAdapter:
             resp.raise_for_status()
             j = resp.json()
 
-            print(j['choices'][0]['message']['content'])
+            print('Azure OpenAI Adapter Generated:',j['choices'][0]['message']['content'])
             return j['choices'][0]['message']['content']
         else:
-            raise ValueError(f"Unknown provider: {self.provider}")
+            raise ValueError(f"Unknown provider: {self.provider}") 
+            
 
-
+####### To choose the adapter by config
 def make_adapter_from_cfg(cfg: Dict[str, Any], image: bool = False) -> ChatAdapter | MockAdapter:
     model = cfg.get('model', 'mock')
     provider = (cfg.get('PROVIDER') or '').lower()
@@ -145,9 +149,12 @@ def make_adapter_from_cfg(cfg: Dict[str, Any], image: bool = False) -> ChatAdapt
             print('provider = azure')
         else:
             provider = 'openai'
-            print('provider = openai')
+            print('no other provider deafault openai')
+
+    
     # Resolve API key for OpenAI-compatible providers
     def _resolve_openai_key() -> str:
+
         if cfg.get('OPENAI_API_KEY'):
             return str(cfg.get('OPENAI_API_KEY'))
         env_name = cfg.get('OPENAI_API_KEY_ENV') or os.getenv('OPENAI_API_KEY_ENV')
@@ -157,6 +164,7 @@ def make_adapter_from_cfg(cfg: Dict[str, Any], image: bool = False) -> ChatAdapt
         return os.getenv('OPENAI_API_KEY') or ''
 
     if provider == 'mock' or model.startswith('mock'):
+        
         return MockAdapter(model=model)
 
     if provider == 'azure':
@@ -176,7 +184,9 @@ def make_adapter_from_cfg(cfg: Dict[str, Any], image: bool = False) -> ChatAdapt
     # default openai-compatible
     use_sdk = (cfg.get('USE_OPENAI_SDK') in ('1', 'true', 'True')) if cfg.get('USE_OPENAI_SDK') is not None else (os.getenv('USE_OPENAI_SDK') in ('1','true','True'))
     ok = _resolve_openai_key()
+    
     if not ok:
+        print('no openai key, use mock adapter')
         return MockAdapter(model=model)
     return ChatAdapter(
         provider='openai',

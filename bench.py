@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Dict
+import traceback
 try:
     from tqdm import tqdm
 except Exception:
@@ -95,20 +96,26 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
     def _task(i: int):
         cfg_m = TextMazeConfig(width=w, height=h, seed=base_seed + i, start_goal=start_goal, algorithm=algorithm)
         gen = TextMazeGenerator(cfg_m)
+        
+
         maze = gen.generate()
+        
         anti = TextAntiCheat(seed=maze.get('nonce', 0))
         maze_p = anti.perturb_input(maze)
+        
         prompt = (
             f"迷宫大小 {len(maze_p['grid'])}x{len(maze_p['grid'][0])}。迷宫为{maze_p['grid']}。0表示通路可以移动；1表示墙壁，不可穿过。原点在左上角，x 为列索引，y 为行索引。起点{maze_p['start']}，终点{maze_p['goal']}。"
             f"请只输出坐标路径列表，如 [(y0,x0),(y1,x1),...]，不要解释。"
         )   
+        # prompt=('告诉我你是谁')
         # print(prompt)
-
-
+        print('text = adapter.generate(prompt)')
         text = adapter.generate(prompt)
+        
+
         text = anti.sandbox_output(text)
         parser = TextParser()
-
+        
         parsed = parser.parse_with_fallback(text, adapter=adapter, prompt="请只输出坐标路径列表，如 [(0,0),(0,1),...]。")
         validator = TextValidator(maze['grid'], maze['start'], maze['goal'], maze['shortest_path'])
         result = validator.validate(parsed.path)
@@ -116,6 +123,7 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
         failure_snapshot = '' if result.get('ok') else result.get('error', '')
         rpath = outdir / f"text2d_report_{model}_{h}x{w}_{i}.html"
         TextReport(str(rpath), maze, parsed.path, scores, failure_snapshot)
+        
         return {'scores': scores, 'report': str(rpath)}
 
     results = []
@@ -126,7 +134,10 @@ def run_text2d(cfg: Dict, outdir: Path) -> Dict:
             try:
                 results.append(fut.result())
             except Exception as e:
+                
                 results.append({'scores': {'total': 0, 'S': 0, 'Q': 0, 'O': 0, 'A': 0}, 'report': '', 'error': str(e)})
+                
+                traceback.print_exception(e)
             pbar.update(1)
         pbar.close()
 
@@ -175,6 +186,8 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
         anti = ImgAntiCheat(seed=maze.get('nonce', 0))
         maze_p = anti.perturb_input(maze)
         prompt = f"请根据图片中的迷宫，从绿色起点到红色终点输出坐标路径列表,白色单元格为路径，可以在上面移动；黑色单元格为墙壁，禁止穿越墙壁。迷宫尺寸为 {h}x{w}。原点(0,0)在左上角.x 为列索引，y 为行索引。只输出[(y1,x1),(y2,x2),...]，不要解释。"
+        
+        print(prompt)
         text = adapter.generate(prompt, image_path=str(img_path))
         text = anti.sandbox_output(text)
         parser = ImgParser()
@@ -197,6 +210,8 @@ def run_image2d(cfg: Dict, outdir: Path) -> Dict:
                 results.append({'scores': r['scores'], 'report': r['report']})
                 img_paths.append(r['img_path'])
             except Exception as e:
+                
+                traceback.print_exception(e)
                 results.append({'scores': {'total': 0, 'S': 0, 'Q': 0, 'O': 0, 'A': 0}, 'report': '', 'error': str(e)})
             pbar.update(1)
         pbar.close()
@@ -267,6 +282,8 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
                 try:
                     results.append(fut.result())
                 except Exception as e:
+                    
+                    traceback.print_exception(e)
                     results.append({'maze': '', 'scores': {'total': 0, 'S': 0, 'Q': 0, 'O': 0, 'A': 0}, 'report': '', 'error': str(e)})
                 pbar.update(1)
             pbar.close()
@@ -310,6 +327,8 @@ def eval_from_pregenerated(cfg: Dict, mazes_dir: Path, outdir: Path, mode: str =
                     results.append({'maze': r['maze'], 'scores': r['scores'], 'report': r['report']})
                     # Can't know image path here without jp; skip accumulating images in summary
                 except Exception as e:
+                    
+                    traceback.print_exception(e)
                     results.append({'maze': '', 'scores': {'total': 0, 'S': 0, 'Q': 0, 'O': 0, 'A': 0}, 'report': '', 'error': str(e)})
                 pbar.update(1)
             pbar.close()
